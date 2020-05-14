@@ -10,3 +10,5 @@ Sometimes, very few times, the game triggers a room change in the mod and the in
 Press F4 to dump a list of active players working with the mod, useful for debugging.
 
 Press F1 to enable/disable the mod.
+
+Once the mod has ben run at least once, it creates a settings file in the vrchat folder under UserData, in a .ini file.
