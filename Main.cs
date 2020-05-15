@@ -80,23 +80,39 @@ namespace DBMod
             //MelonModLogger.Log(ConsoleColor.Blue, "New scene loaded; reseted");
         }
 
-        //private void AddButton()
-        //{
-        //    //foreach (Transform t in QuickMenu.prop_QuickMenu_0.GetComponentsInChildren<Transform>()) MelonModLogger.Log(t.gameObject.name);
-        //    GameObject button = UnityEngine.Object.Instantiate(QuickMenu.prop_QuickMenu_0.transform.Find("ShortcutMenu/WorldsButton").gameObject);
-        //    button.transform.localScale *= 4f;
-        //    button.name = "MDBT";
-        //    button.GetComponentInChildren<Text>().text = "Dynamic Bones mod";
-        //    button.GetComponentInChildren<UiTooltip>().text = "enables and disables the multiplyer dynamic bones mod";
-        //    button.GetComponentInChildren<UiTooltip>().alternateText = "enables and disables the multiplyer dynamic bones mod";
-        //    //button.transform.localPosition = QuickMenu.prop_QuickMenu_0.transform.Find("ShortcutMenu/WorldsButton").localPosition;
-        //    //button.transform.localPosition.Set(button.transform.localPosition.x - 10, button.transform.localPosition.y, button.transform.localPosition.z);
-        //    button.GetComponent<Button>().onClick = new Button.ButtonClickedEvent();
-        //    button.GetComponent<Button>().onClick.AddListener(new System.Action(ToggleState));
-        //}
+        private void AddButton()
+        {
+            // our quick menu
+            Transform ourQUickMenu = QuickMenu.prop_QuickMenu_0.transform;
+
+            // clone of a standard button
+            Transform ourButton = UnityEngine.Object.Instantiate<GameObject>(ourQUickMenu.Find("CameraMenu/BackButton").gameObject).transform;
+            if (ourButton == null) MelonModLogger.Log(ConsoleColor.Blue, "no button");
+
+            // set button's parent to quick menu
+            ourButton.SetParent(ourQUickMenu.Find("ShortcutMenu"), false);
+
+            // set button text
+            ourButton.GetComponentInChildren<Text>().text = "Dynamic Bones";
+
+            // set position of new button based on existing menu buttons
+            float num = ourQUickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - ourQUickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
+            float num2 = ourQUickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - ourQUickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
+            ourButton.localPosition = new Vector3(ourButton.localPosition.x + num * 1, ourButton.localPosition.y + num2 * 1, ourButton.localPosition.z);
+
+            // Make it so the button does what we want
+            ourButton.GetComponent<Button>().onClick = new Button.ButtonClickedEvent();
+            ourButton.GetComponent<Button>().onClick.AddListener(new System.Action(() =>
+            {
+                ToggleState();
+            }));
+
+            // enable it just in case
+            ourButton.gameObject.SetActive(true);
+        }
 
         private delegate void AvatarInstantiatedDelegate(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr, bool loaded);
-        private delegate void PlayerLeftDelegate(IntPtr @this, IntPtr vrcPlayerApiPtr);
+        private delegate void PlayerLeftDelegate(IntPtr @this, IntPtr playerPtr);
         private delegate void LeaveRoom();
 
         public unsafe override void OnApplicationStart()
@@ -134,29 +150,22 @@ namespace DBMod
             onAvatarInstantiatedDelegate = Marshal.GetDelegateForFunctionPointer<AvatarInstantiatedDelegate>(*(IntPtr*)funcToHook);
             MelonModLogger.Log(ConsoleColor.Blue, $"Hooked OnAvatarInstantiated? {((onAvatarInstantiatedDelegate != null) ? "Yes!" : "No: critical error!!")}");
 
-            funcToHook = (IntPtr)typeof(VRCUiCursor).GetField("NativeMethodInfoPtr_OnPlayerLeft_Private_Void_VRCPlayerApi_0", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
+            funcToHook = (IntPtr)typeof(NetworkManager).GetField("NativeMethodInfoPtr_Method_Public_Void_Player_0", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
             Hook(funcToHook, new System.Action<IntPtr, IntPtr>(OnPlayerLeft).Method.MethodHandle.GetFunctionPointer());
             onPlayerLeftDelegate = Marshal.GetDelegateForFunctionPointer<PlayerLeftDelegate>(*(IntPtr*)funcToHook);
             MelonModLogger.Log(ConsoleColor.Blue, $"Hooked OnPlayerLeft? {((onPlayerLeftDelegate != null) ? "Yes!" : "No: critical error!!")}");
 
+            
             funcToHook = (IntPtr)typeof(RoomManagerBase).GetField("NativeMethodInfoPtr_Method_Public_Static_Void_0", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
             Hook(funcToHook, new System.Action(OnLeavingRoom).Method.MethodHandle.GetFunctionPointer());
             leaveRoom = Marshal.GetDelegateForFunctionPointer<LeaveRoom>(*(IntPtr*)funcToHook);
             MelonModLogger.Log(ConsoleColor.Blue, $"Hooked LeaveRoom? {((leaveRoom != null) ? "Yes!" : "No: critical error!!")}");
 
-            //funcToHook = (IntPtr)typeof(VRCSimpleUiPageFooter).GetField("NativeMethodInfoPtr_Exit_Public_Void_31", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
-            //Hook(funcToHook, new System.Action<IntPtr>((@this) =>
-            //{
-            //    MelonModLogger.Log(ConsoleColor.Cyan, "Goodbye!");
-            //    Thread.Sleep(3000);
-            //    System.Environment.Exit(0);
-            //    //System.Environment.FailFast("VRChat Exit Fix");
-            //}).Method.MethodHandle.GetFunctionPointer());
-
             MelonModLogger.Log(ConsoleColor.Green, $"NDBMod is {((enabled == true) ? "enabled" : "disabled")}");
 
             if (onPlayerLeftDelegate == null || onAvatarInstantiatedDelegate == null || leaveRoom == null)
             {
+                
                 this.enabled = false;
                 MelonModLogger.Log(ConsoleColor.Red, "Multiplayer Dynamic Bones mod suffered a critical error! Please remove from the Mods folder to avoid game crashes! \nContact me for support.");
             }
@@ -173,19 +182,30 @@ namespace DBMod
             leaveRoom();
         }
 
-        private static void OnPlayerLeft(IntPtr @this, IntPtr vrcPlayerApiPtr)
+        private static void OnPlayerLeft(IntPtr @this, IntPtr playerPtr)
         {
-            VRCPlayerApi playerApi = new VRCPlayerApi(vrcPlayerApiPtr);
+            Player player = new Player(playerPtr);
+            
+            if (!_Instance.avatarsInScene.ContainsKey(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0))
+            {
+                onPlayerLeftDelegate(@this, playerPtr);
+                return;
+            }
 
             _Instance.old_avatarsInScene = _Instance.avatarsInScene;
             _Instance.old_originalSettings = _Instance.originalSettings;
             _Instance.old_localPlayer = _Instance.localPlayer;
 
-            _Instance.RemoveBonesOfGameObjectInAllPlayers(_Instance.avatarsInScene[playerApi.gameObject.GetComponent<VRCPlayer>().namePlate.prop_String_0].Item4);
-            _Instance.DeleteOriginalColliders(playerApi.gameObject.GetComponent<VRCPlayer>().namePlate.prop_String_0);
-            _Instance.RemovePlayerFromDict(playerApi.gameObject.GetComponent<VRCPlayer>().namePlate.prop_String_0);
-            MelonModLogger.Log(ConsoleColor.Blue, $"Player {playerApi.gameObject.GetComponent<VRCPlayer>().namePlate.prop_String_0} left the room so all his dynamic bones info was deleted");
-            onPlayerLeftDelegate(@this, vrcPlayerApiPtr);
+            _Instance.RemoveBonesOfGameObjectInAllPlayers(_Instance.avatarsInScene[player.field_Internal_VRCPlayer_0.namePlate.prop_String_0].Item4);
+            _Instance.DeleteOriginalColliders(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0);
+            _Instance.RemovePlayerFromDict(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0);
+            MelonModLogger.Log(ConsoleColor.Blue, $"Player {player.field_Internal_VRCPlayer_0.namePlate.prop_String_0} left the room so all his dynamic bones info was deleted");
+            onPlayerLeftDelegate(@this, playerPtr);
+        }
+
+        public override void VRChat_OnUiManagerInit()
+        {
+            AddButton();
         }
 
         private static void OnAvatarInstantiated(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr, bool loaded)
@@ -269,14 +289,17 @@ namespace DBMod
         {
             foreach (DynamicBone[] bones in avatarsInScene.Where((x) => SelectBonesWithRules(x)).Select((x) => x.Value.Item3))
             {
+                
                 foreach (DynamicBone db in bones)
                 {
+                    if (db == null) continue;
                     ApplyBoneSettings(db);
                 }
                 foreach (DynamicBoneCollider[] colliders in avatarsInScene.Where((x) => SelectCollidersWithRules(x)).Select((x) => x.Value.Item4))
                 {
                     foreach (DynamicBone b in bones)
                     {
+                        if (b == null) continue;
                         foreach (DynamicBoneCollider dbc in colliders)
                         {
                             AddColliderToDynamicBone(b, dbc);
@@ -288,7 +311,7 @@ namespace DBMod
 
         private void AddBonesOfGameObjectToAllPlayers(System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> player)
         {
-            if (player.Item1 != localPlayer) return;
+            if (player.Item1 == localPlayer) return;
             if (NDBConfig.onlyForMeAndFriends)
             {
                 if (!player.Item5) return;
@@ -302,6 +325,7 @@ namespace DBMod
             {
                 foreach (DynamicBone db in dbs)
                 {
+                    if (db == null) continue;
                     ApplyBoneSettings(db);
                     foreach (DynamicBoneCollider dbc in player.Item4)
                     {
@@ -327,6 +351,9 @@ namespace DBMod
 
         private void AddColliderToDynamicBone(DynamicBone bone, DynamicBoneCollider dbc)
         {
+#if DEBUG
+            MelonModLogger.Log(ConsoleColor.Cyan, $"Adding {bone.m_Root.name} to {dbc.gameObject.name}");
+#endif
             if (!bone.m_Colliders.Contains(dbc)) bone.m_Colliders.Add(dbc);
         }
 
@@ -355,6 +382,19 @@ namespace DBMod
 
         public override void OnUpdate()
         {
+            if (Input.GetKeyDown(KeyCode.F8))
+            {
+                MelonModLogger.Log(ConsoleColor.DarkMagenta, $"There are {avatarsInScene.Values.Aggregate(0, (acc, tup) => acc += tup.Item3.Length)} Dynamic Bones in scene");
+                MelonModLogger.Log(ConsoleColor.DarkMagenta, $"There are {avatarsInScene.Values.Aggregate(0, (acc, tup) => acc += tup.Item4.Length)} Dynamic Bones Colliders in scene");
+                MelonModLogger.Log(ConsoleColor.DarkMagenta, "My bones have the following colliders attached:");
+                avatarsInScene.Values.First((tup) => tup.Item1 == localPlayer).Item3.Do((bone) =>
+                {
+                    bone.m_Colliders.ToArray().Do((dbc) =>
+                    {
+                        MelonModLogger.Log(ConsoleColor.DarkMagenta, $"Bone {bone.m_Root.name} has {dbc.gameObject.name}");
+                    });
+                });
+            }
 
             if (Input.GetKeyDown(KeyCode.F1))
             {
@@ -382,12 +422,12 @@ namespace DBMod
         private void ToggleState()
         {
             enabled = !enabled;
+            MelonModLogger.Log(ConsoleColor.Green, $"NDBMod is now {((enabled == true) ? "enabled" : "disabled")}");
             if (!enabled)
             {
                 RestoreOriginalColliderList();
             }
             else AddAllCollidersToAllPlayers();
-            MelonModLogger.Log(ConsoleColor.Green, $"NDBMod is now {((enabled == true) ? "enabled" : "disabled")}");
         }
 
         private void RemovePlayerFromDict(string name)
