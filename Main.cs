@@ -108,7 +108,7 @@ namespace DBMod
                 try
                 {
                     ToggleState();
-                    toggleButton.GetComponent<Text>().text = $"Press to {((enabled) ? "disable" : "enable")} Dynamic Bones mod";
+                    toggleButton.GetComponentInChildren<Text>().text = $"Press to {((enabled) ? "disable" : "enable")} Dynamic Bones mod";
                 }
                 catch (System.Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); }
             }));
@@ -175,8 +175,6 @@ namespace DBMod
                 this.enabled = false;
                 MelonModLogger.Log(ConsoleColor.Red, "Multiplayer Dynamic Bones mod suffered a critical error! Please remove from the Mods folder to avoid game crashes! \nContact me for support.");
             }
-
-
         }
 
         private static void OnJoinedRoom(IntPtr @this)
@@ -463,9 +461,9 @@ namespace DBMod
             {
                 foreach (DynamicBone original in originalSettings[player.Key])
                 {
-                    for (int i = 0; i < player.Value.Item3.Length; i++)
+                    foreach(DynamicBone db in player.Value.Item3)
                     {
-                        player.Value.Item3[i] = original;
+                        player.Value.Item3.DoIf((x) => ReferenceEquals(original, x), (b) => b = original);
                     }
                 }
             }
