@@ -59,6 +59,7 @@ namespace DBMod
         private Dictionary<string, DynamicBone[]> originalSettings;
         private GameObject localPlayer;
         private GameObject old_localPlayer;
+        private Transform toggleButton;
 
         private bool enabled = true;
 
@@ -86,29 +87,34 @@ namespace DBMod
             Transform ourQUickMenu = QuickMenu.prop_QuickMenu_0.transform;
 
             // clone of a standard button
-            Transform ourButton = UnityEngine.Object.Instantiate<GameObject>(ourQUickMenu.Find("CameraMenu/BackButton").gameObject).transform;
-            if (ourButton == null) MelonModLogger.Log(ConsoleColor.Blue, "no button");
+            toggleButton = UnityEngine.Object.Instantiate<GameObject>(ourQUickMenu.Find("CameraMenu/BackButton").gameObject).transform;
+            if (toggleButton == null) MelonModLogger.Log(ConsoleColor.Blue, "no button");
 
             // set button's parent to quick menu
-            ourButton.SetParent(ourQUickMenu.Find("ShortcutMenu"), false);
+            toggleButton.SetParent(ourQUickMenu.Find("ShortcutMenu"), false);
 
             // set button text
-            ourButton.GetComponentInChildren<Text>().text = "Dynamic Bones";
+            toggleButton.GetComponentInChildren<Text>().text = "Dynamic Bones";
 
             // set position of new button based on existing menu buttons
             float num = ourQUickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - ourQUickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
             float num2 = ourQUickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - ourQUickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
-            ourButton.localPosition = new Vector3(ourButton.localPosition.x + num * 1, ourButton.localPosition.y + num2 * 1, ourButton.localPosition.z);
+            toggleButton.localPosition = new Vector3(toggleButton.localPosition.x + num * 1, toggleButton.localPosition.y + num2 * 1, toggleButton.localPosition.z);
 
             // Make it so the button does what we want
-            ourButton.GetComponent<Button>().onClick = new Button.ButtonClickedEvent();
-            ourButton.GetComponent<Button>().onClick.AddListener(new System.Action(() =>
+            toggleButton.GetComponent<Button>().onClick = new Button.ButtonClickedEvent();
+            toggleButton.GetComponent<Button>().onClick.AddListener(new System.Action(() =>
             {
-                ToggleState();
+                try
+                {
+                    ToggleState();
+                    toggleButton.GetComponent<Text>().text = $"Press to {((enabled) ? "disable" : "enable")} Dynamic Bones mod";
+                }
+                catch (System.Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); }
             }));
 
             // enable it just in case
-            ourButton.gameObject.SetActive(true);
+            toggleButton.gameObject.SetActive(true);
         }
 
         private delegate void AvatarInstantiatedDelegate(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr, bool loaded);

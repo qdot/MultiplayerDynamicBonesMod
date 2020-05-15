@@ -6,7 +6,7 @@ using MelonLoader;
 // conjunto de atributos. Cambie estos valores de atributo para modificar la información
 // asociada con un ensamblado.
 [assembly: AssemblyTitle("NDBMod")]
-[assembly: AssemblyDescription("Makes dynamic bones multiplayer! Credits to knah for helping me figure out delegate detours, and to others for posting valuable examples.")]
+[assembly: AssemblyDescription("Makes dynamic bones multiplayer! Credits to knah for helping me figure out delegate detours, to Huntereb for showing me how to create a GUI vrchat button, and to others for posting valuable examples.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Multiplayer Dynamic Bones")]
