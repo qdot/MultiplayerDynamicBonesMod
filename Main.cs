@@ -65,7 +65,7 @@ namespace DBMod
 
         private static AvatarInstantiatedDelegate onAvatarInstantiatedDelegate;
         private static PlayerLeftDelegate onPlayerLeftDelegate;
-        private static LeaveRoom leaveRoom;
+        private static JoinedRoom onJoinedRoom;
 
 
         private static void Hook(IntPtr target, IntPtr detour)
@@ -119,7 +119,7 @@ namespace DBMod
 
         private delegate void AvatarInstantiatedDelegate(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr, bool loaded);
         private delegate void PlayerLeftDelegate(IntPtr @this, IntPtr playerPtr);
-        private delegate void LeaveRoom();
+        private delegate void JoinedRoom(IntPtr @this);
 
         public unsafe override void OnApplicationStart()
         {
@@ -162,14 +162,14 @@ namespace DBMod
             MelonModLogger.Log(ConsoleColor.Blue, $"Hooked OnPlayerLeft? {((onPlayerLeftDelegate != null) ? "Yes!" : "No: critical error!!")}");
 
             
-            funcToHook = (IntPtr)typeof(RoomManagerBase).GetField("NativeMethodInfoPtr_Method_Public_Static_Void_0", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
-            Hook(funcToHook, new System.Action(OnLeavingRoom).Method.MethodHandle.GetFunctionPointer());
-            leaveRoom = Marshal.GetDelegateForFunctionPointer<LeaveRoom>(*(IntPtr*)funcToHook);
-            MelonModLogger.Log(ConsoleColor.Blue, $"Hooked LeaveRoom? {((leaveRoom != null) ? "Yes!" : "No: critical error!!")}");
+            funcToHook = (IntPtr)typeof(NetworkManager).GetField("NativeMethodInfoPtr_OnJoinedRoom_Public_Virtual_Final_New_Void_2", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
+            Hook(funcToHook, new System.Action<IntPtr>(OnJoinedRoom).Method.MethodHandle.GetFunctionPointer());
+            onJoinedRoom = Marshal.GetDelegateForFunctionPointer<JoinedRoom>(*(IntPtr*)funcToHook);
+            MelonModLogger.Log(ConsoleColor.Blue, $"Hooked OnJoinRoom? {((onJoinedRoom != null) ? "Yes!" : "No: critical error!!")}");
 
             MelonModLogger.Log(ConsoleColor.Green, $"NDBMod is {((enabled == true) ? "enabled" : "disabled")}");
 
-            if (onPlayerLeftDelegate == null || onAvatarInstantiatedDelegate == null || leaveRoom == null)
+            if (onPlayerLeftDelegate == null || onAvatarInstantiatedDelegate == null || onJoinedRoom == null)
             {
                 
                 this.enabled = false;
@@ -179,13 +179,13 @@ namespace DBMod
 
         }
 
-        private static void OnLeavingRoom()
+        private static void OnJoinedRoom(IntPtr @this)
         {
+            onJoinedRoom(@this);
             _Instance.originalSettings = new Dictionary<string, DynamicBone[]>();
             _Instance.avatarsInScene = new Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>>();
             _Instance.localPlayer = null;
             MelonModLogger.Log(ConsoleColor.Blue, "New scene loaded; reset");
-            leaveRoom();
         }
 
         private static void OnPlayerLeft(IntPtr @this, IntPtr playerPtr)
