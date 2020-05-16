@@ -35,5 +35,5 @@ using MelonLoader;
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
 [assembly: NeutralResourcesLanguage("en")]
-[assembly: MelonModInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", " release build 8", "DltDat/charlesdeep", "")]
+[assembly: MelonModInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", " release build 10", "DltDat/charlesdeep", "")]
 [assembly: MelonModGame("VRChat", "VRChat")]

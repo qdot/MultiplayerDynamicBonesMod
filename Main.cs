@@ -49,15 +49,26 @@ namespace DBMod
             public static bool onlyForMyBones;
             public static bool onlyForMeAndFriends;
             public static bool disallowDesktoppers;
-
         }
+
+        struct OriginalBoneInformation
+        {
+            public float updateRate;
+            public float distanceToDisable;
+            public bool distantDisable;
+            public List<DynamicBoneCollider> colliders;
+
+            public DynamicBone referenceToOriginal;
+        }
+
         private static NDB _Instance;
 
         private Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>> old_avatarsInScene;
         private Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>> avatarsInScene;
-        private Dictionary<string, DynamicBone[]> old_originalSettings;
-        private Dictionary<string, DynamicBone[]> originalSettings;
+        private Dictionary<string, List<OriginalBoneInformation>> old_originalSettings;
+        private Dictionary<string, List<OriginalBoneInformation>> originalSettings;
         private GameObject localPlayer;
+        private Transform localPlayerReferenceTransform;
         private GameObject old_localPlayer;
         private Transform toggleButton;
 
@@ -73,28 +84,20 @@ namespace DBMod
             typeof(Imports).GetMethod("Hook", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).Invoke(null, new object[] { target, detour });
         }
 
-        public override void OnLevelWasLoaded(int level)
-        {
-            //originalSettings = new Dictionary<string, DynamicBone[]>();
-            //avatarsInScene = new Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[]>>();
-            //localPlayer = null;
-            //MelonModLogger.Log(ConsoleColor.Blue, "New scene loaded; reseted");
-        }
-
         private void AddButton()
         {
             // our quick menu
             Transform ourQUickMenu = QuickMenu.prop_QuickMenu_0.transform;
 
             // clone of a standard button
-            toggleButton = UnityEngine.Object.Instantiate<GameObject>(ourQUickMenu.Find("CameraMenu/BackButton").gameObject).transform;
+            toggleButton = UnityEngine.Object.Instantiate(ourQUickMenu.Find("CameraMenu/BackButton").gameObject).transform;
             if (toggleButton == null) MelonModLogger.Log(ConsoleColor.Blue, "no button");
 
             // set button's parent to quick menu
             toggleButton.SetParent(ourQUickMenu.Find("ShortcutMenu"), false);
 
             // set button text
-            toggleButton.GetComponentInChildren<Text>().text = "Dynamic Bones";
+            toggleButton.GetComponentInChildren<Text>().text = $"Press to {((enabled) ? "disable" : "enable")} Dynamic Bones mod";
 
             // set position of new button based on existing menu buttons
             float num = ourQUickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - ourQUickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
@@ -131,7 +134,7 @@ namespace DBMod
             ModPrefs.RegisterPrefBool("NDB", "OnlyFriends", false, "Only me and friends can interact with my and friend's bones");
             ModPrefs.RegisterPrefBool("NDB", "DisallowDesktoppers", false, "Desktoppers's colliders and bones won't be multiplayer'd");
             ModPrefs.RegisterPrefBool("NDB", "DistanceDisable", true, "Disable bones if beyond a distance");
-            ModPrefs.RegisterPrefFloat("NDB", "DistanceToDisable", 2f, "Distance limit");
+            ModPrefs.RegisterPrefFloat("NDB", "DistanceToDisable", 4f, "Distance limit");
             ModPrefs.RegisterPrefBool("NDB", "DisallowInsideColliders", true, "Disallow inside colliders");
             ModPrefs.RegisterPrefFloat("NDB", "ColliderSizeLimit", 1f, "Collider size limit");
             ModPrefs.RegisterPrefInt("NDB", "DynamicBoneUpdateRate", 60, "Dynamic bone update rate");
@@ -161,17 +164,16 @@ namespace DBMod
             onPlayerLeftDelegate = Marshal.GetDelegateForFunctionPointer<PlayerLeftDelegate>(*(IntPtr*)funcToHook);
             MelonModLogger.Log(ConsoleColor.Blue, $"Hooked OnPlayerLeft? {((onPlayerLeftDelegate != null) ? "Yes!" : "No: critical error!!")}");
 
-            
+
             funcToHook = (IntPtr)typeof(NetworkManager).GetField("NativeMethodInfoPtr_OnJoinedRoom_Public_Virtual_Final_New_Void_2", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
             Hook(funcToHook, new System.Action<IntPtr>(OnJoinedRoom).Method.MethodHandle.GetFunctionPointer());
             onJoinedRoom = Marshal.GetDelegateForFunctionPointer<JoinedRoom>(*(IntPtr*)funcToHook);
-            MelonModLogger.Log(ConsoleColor.Blue, $"Hooked OnJoinRoom? {((onJoinedRoom != null) ? "Yes!" : "No: critical error!!")}");
+            MelonModLogger.Log(ConsoleColor.Blue, $"Hooked OnJoinedRoom? {((onJoinedRoom != null) ? "Yes!" : "No: critical error!!")}");
 
             MelonModLogger.Log(ConsoleColor.Green, $"NDBMod is {((enabled == true) ? "enabled" : "disabled")}");
 
             if (onPlayerLeftDelegate == null || onAvatarInstantiatedDelegate == null || onJoinedRoom == null)
             {
-                
                 this.enabled = false;
                 MelonModLogger.Log(ConsoleColor.Red, "Multiplayer Dynamic Bones mod suffered a critical error! Please remove from the Mods folder to avoid game crashes! \nContact me for support.");
             }
@@ -179,26 +181,23 @@ namespace DBMod
 
         private static void OnJoinedRoom(IntPtr @this)
         {
-            onJoinedRoom(@this);
-            _Instance.originalSettings = new Dictionary<string, DynamicBone[]>();
+            _Instance.originalSettings = new Dictionary<string, List<OriginalBoneInformation>>();
             _Instance.avatarsInScene = new Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>>();
             _Instance.localPlayer = null;
+
+            onJoinedRoom(@this);
             MelonModLogger.Log(ConsoleColor.Blue, "New scene loaded; reset");
         }
 
         private static void OnPlayerLeft(IntPtr @this, IntPtr playerPtr)
         {
             Player player = new Player(playerPtr);
-            
+
             if (!_Instance.avatarsInScene.ContainsKey(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0))
             {
                 onPlayerLeftDelegate(@this, playerPtr);
                 return;
             }
-
-            _Instance.old_avatarsInScene = _Instance.avatarsInScene;
-            _Instance.old_originalSettings = _Instance.originalSettings;
-            _Instance.old_localPlayer = _Instance.localPlayer;
 
             _Instance.RemoveBonesOfGameObjectInAllPlayers(_Instance.avatarsInScene[player.field_Internal_VRCPlayer_0.namePlate.prop_String_0].Item4);
             _Instance.DeleteOriginalColliders(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0);
@@ -212,19 +211,42 @@ namespace DBMod
             AddButton();
         }
 
+        private static void RecursiveHierarchyDump(Transform child, int c)
+        {
+            StringBuilder offs = new StringBuilder();
+            for (int i = 0; i < c; i++) offs.Append('-');
+            MelonModLogger.Log(ConsoleColor.White, offs.ToString() + child.name);
+            for (int x = 0; x < child.childCount; x++)
+            {
+                RecursiveHierarchyDump(child.GetChild(x), c + 1);
+            }
+        }
+
+        private static bool hasDumpedIt = false;
         private static void OnAvatarInstantiated(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr, bool loaded)
         {
             onAvatarInstantiatedDelegate(@this, avatarPtr, avatarDescriptorPtr, loaded);
 
             try
             {
+                if (!hasDumpedIt)
+                {
+                    hasDumpedIt = true;
+                    _Instance.localPlayerReferenceTransform = GameObject.Find("VRCPlayer(Clone)").transform;
+                    //SceneManager.GetActiveScene().GetRootGameObjects().Select((go) => go.transform).Do((t) => RecursiveHierarchyDump(t, 0));
+                }
+
                 if (loaded)
                 {
                     GameObject avatar = new GameObject(avatarPtr);
                     VRC.SDKBase.VRC_AvatarDescriptor avatarDescriptor = new VRC.SDKBase.VRC_AvatarDescriptor(avatarDescriptorPtr);
 
 
-                    if (avatar.transform.root.gameObject.name.Contains("[Local]")) _Instance.localPlayer = avatar;
+                    if (avatar.transform.root.gameObject.name.Contains("[Local]"))
+                    {
+                        _Instance.localPlayer = avatar;
+                    }
+
                     _Instance.AddOrReplaceWithCleanup(
                         avatar.transform.root.GetComponentInChildren<VRCPlayer>().namePlate.prop_String_0,
                         new System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>(
@@ -240,7 +262,7 @@ namespace DBMod
             }
             catch (System.Exception ex)
             {
-                MelonModLogger.LogError("An exception was thrown while working!\n" + ex.ToString() + "\nStack trace:\n" + ex.StackTrace);
+                MelonModLogger.LogError("An exception was thrown while working!\n" + ex.ToString());
             }
         }
 
@@ -261,13 +283,13 @@ namespace DBMod
                 RemoveBonesOfGameObjectInAllPlayers(oldColliders);
                 MelonModLogger.Log(ConsoleColor.Blue, $"User {key} swapped avatar, system updated");
             }
-            AddBonesOfGameObjectToAllPlayers(newValue);
+            if (enabled) AddBonesOfGameObjectToAllPlayers(newValue);
         }
 
         private bool SelectBonesWithRules(KeyValuePair<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>> item)
         {
             bool valid = true;
-            if (NDBConfig.onlyForMyBones) valid &= item.Value.Item1 == localPlayer;
+            //if (NDBConfig.onlyForMyBones) valid &= item.Value.Item1 == localPlayer;
             if (NDBConfig.onlyForMeAndFriends) valid &= item.Value.Item5 || (item.Value.Item1 == localPlayer);
             if (NDBConfig.disallowDesktoppers) valid &= item.Value.Item2 || (item.Value.Item1 == localPlayer);
             return valid;
@@ -286,14 +308,14 @@ namespace DBMod
             bone.m_DistantDisable = NDBConfig.distanceDisable;
             bone.m_DistanceToObject = NDBConfig.distanceToDisable;
             bone.m_UpdateRate = NDBConfig.dynamicBoneUpdateRate;
-            bone.m_ReferenceObject = localPlayer.transform;
+            bone.m_ReferenceObject = localPlayer?.transform ?? bone.m_ReferenceObject;// (localPlayer?.transform ?? localPlayerReferenceTransform) ?? bone.m_ReferenceObject;
         }
 
         private void AddAllCollidersToAllPlayers()
         {
             foreach (DynamicBone[] bones in avatarsInScene.Where((x) => SelectBonesWithRules(x)).Select((x) => x.Value.Item3))
             {
-                
+
                 foreach (DynamicBone db in bones)
                 {
                     if (db == null) continue;
@@ -306,7 +328,7 @@ namespace DBMod
                         if (b == null) continue;
                         foreach (DynamicBoneCollider dbc in colliders)
                         {
-                            AddColliderToDynamicBone(b, dbc);
+                            AddColliderToBone(b, dbc);
                         }
                     }
                 }
@@ -315,25 +337,48 @@ namespace DBMod
 
         private void AddBonesOfGameObjectToAllPlayers(System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> player)
         {
-            if (player.Item1 == localPlayer) return;
-            if (NDBConfig.onlyForMeAndFriends)
+            if (player.Item1 != localPlayer)
             {
-                if (!player.Item5) return;
-            }
-            if (NDBConfig.disallowDesktoppers)
-            {
-                if (!player.Item2) return;
+                if (NDBConfig.onlyForMeAndFriends)
+                {
+                    if (!player.Item5)
+                    {
+                        MelonModLogger.Log(ConsoleColor.DarkYellow, $"Not adding bones of player {avatarsInScene.First((x) => x.Value.Item1 == player.Item1).Key} because settings only allow friends");
+                        return;
+                    }
+                }
+                if (NDBConfig.disallowDesktoppers)
+                {
+                    MelonModLogger.Log(ConsoleColor.DarkYellow, $"Not adding bones of player {avatarsInScene.First((x) => x.Value.Item1 == player.Item1).Key} because settings disallow desktopper");
+                    if (!player.Item2) return;
+                }
             }
 
-            foreach (DynamicBone[] dbs in avatarsInScene.Where((x) => SelectBonesWithRules(x)).Select((x) => x.Value.Item3))
+            foreach (DynamicBone db in player.Item3)
             {
-                foreach (DynamicBone db in dbs)
+                if (db == null) continue;
+                ApplyBoneSettings(db);
+            }
+
+            foreach (DynamicBone[] playersColliders in avatarsInScene.Where((x) => SelectBonesWithRules(x)).Select((x) => x.Value.Item3))
+            {
+                foreach (DynamicBone playerBone in playersColliders)
                 {
-                    if (db == null) continue;
-                    ApplyBoneSettings(db);
-                    foreach (DynamicBoneCollider dbc in player.Item4)
+                    foreach (DynamicBoneCollider playerCollider in player.Item4)
                     {
-                        AddColliderToDynamicBone(db, dbc);
+                        AddColliderToBone(playerBone, playerCollider);
+                    }
+                }
+            }
+
+            foreach (DynamicBoneCollider[] colliders in avatarsInScene.Where((x) => SelectCollidersWithRules(x)).Select((x) => x.Value.Item4))
+            {
+                foreach (DynamicBone b in player.Item3)
+                {
+                    if (b == null) continue;
+                    foreach (DynamicBoneCollider dbc in colliders)
+                    {
+                        AddColliderToDynamicBone(b, dbc);
                     }
                 }
             }
@@ -373,15 +418,16 @@ namespace DBMod
                 return;
             }
 
-            bone.m_Colliders.Add(collider);
+            AddColliderToDynamicBone(bone, collider);
+            //bone.m_Colliders.Add(collider);
         }
 
-        private void RestoreFromBackUp()
-        {
-            avatarsInScene = old_avatarsInScene;
-            originalSettings = old_originalSettings;
-            localPlayer = old_localPlayer;
-        }
+        //private void RestoreFromBackUp()
+        //{
+        //    avatarsInScene = old_avatarsInScene;
+        //    originalSettings = old_originalSettings;
+        //    localPlayer = old_localPlayer;
+        //}
 
 
         public override void OnUpdate()
@@ -391,7 +437,7 @@ namespace DBMod
                 MelonModLogger.Log(ConsoleColor.DarkMagenta, $"There are {avatarsInScene.Values.Aggregate(0, (acc, tup) => acc += tup.Item3.Length)} Dynamic Bones in scene");
                 MelonModLogger.Log(ConsoleColor.DarkMagenta, $"There are {avatarsInScene.Values.Aggregate(0, (acc, tup) => acc += tup.Item4.Length)} Dynamic Bones Colliders in scene");
                 MelonModLogger.Log(ConsoleColor.DarkMagenta, "My bones have the following colliders attached:");
-                avatarsInScene.Values.First((tup) => tup.Item1 == localPlayer).Item3.Do((bone) =>
+                avatarsInScene.Values.First((tup) => tup.Item1 == localPlayer).Item3.DoIf((bone) => bone != null, (bone) =>
                 {
                     bone.m_Colliders.ToArray().Do((dbc) =>
                     {
@@ -405,6 +451,11 @@ namespace DBMod
                 ToggleState();
             }
 
+            //if (Input.GetKeyDown(KeyCode.F2))
+            //{
+
+            //}
+
             if (Input.GetKeyDown(KeyCode.F4))
             {
                 MelonModLogger.Log(ConsoleColor.Red, "List of avatar in dict:");
@@ -414,13 +465,13 @@ namespace DBMod
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.F5))
-            {
-                if (old_localPlayer != null && old_avatarsInScene != null && old_originalSettings != null)
-                {
-                    RestoreFromBackUp();
-                }
-            }
+            //if (Input.GetKeyDown(KeyCode.F5))
+            //{
+            //    if (old_localPlayer != null && old_avatarsInScene != null && old_originalSettings != null)
+            //    {
+            //        RestoreFromBackUp();
+            //    }
+            //}
         }
 
         private void ToggleState()
@@ -451,22 +502,57 @@ namespace DBMod
 
         private void SaveOriginalColliderList(string name, DynamicBone[] bones)
         {
-            if (!originalSettings.ContainsKey(name)) originalSettings.Add(name, bones);
-            else originalSettings[name] = bones;
+            if (originalSettings.ContainsKey(name)) originalSettings.Remove(name);
+            List<OriginalBoneInformation> ogInfo = new List<OriginalBoneInformation>(bones.Length);
+            foreach (DynamicBone b in bones)
+            {
+                bones.Select((bone) =>
+                {
+                    return new OriginalBoneInformation() { distanceToDisable = bone.m_DistanceToObject, updateRate = bone.m_UpdateRate, distantDisable = bone.m_DistantDisable, colliders = new List<DynamicBoneCollider>(bone.m_Colliders.ToArrayExtension()), referenceToOriginal = bone };
+                }).Do((info) => ogInfo.Add(info));
+            }
+            originalSettings.Add(name, ogInfo);
+            MelonModLogger.Log(ConsoleColor.DarkGreen, $"Saved original dynamic bone info of player {name}");
+            //originalSettings.Do((x) => MelonModLogger.Log(ConsoleColor.Red, x.Key));
         }
 
         private void RestoreOriginalColliderList()
         {
-            foreach (var player in avatarsInScene)
+            foreach (KeyValuePair<string, Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>> player in avatarsInScene)
             {
-                foreach (DynamicBone original in originalSettings[player.Key])
+                MelonModLogger.Log(ConsoleColor.DarkBlue, $"Restoring original settings for player {player.Key}");
+                foreach (DynamicBone db in player.Value.Item3)
                 {
-                    foreach(DynamicBone db in player.Value.Item3)
+                    if (originalSettings.TryGetValue(player.Key, out List<OriginalBoneInformation> origList))
                     {
-                        player.Value.Item3.DoIf((x) => ReferenceEquals(original, x), (b) => b = original);
+                        origList.DoIf((x) => x.referenceToOriginal.transform == db.transform, (origData) =>
+                        {
+                            db.m_Colliders.Clear();
+                            origData.colliders.ForEach((dbc) => db.m_Colliders.Add(dbc));
+                            db.m_DistanceToObject = origData.distanceToDisable;
+                            db.m_UpdateRate = origData.updateRate;
+                            db.m_DistantDisable = origData.distantDisable;
+                        });
+                    }
+                    else
+                    {
+                        MelonModLogger.Log(ConsoleColor.DarkYellow, $"Warning: could not find original dynamic bone info for {player.Key}'s bone {db.gameObject.name} . This means his bones won't be disabled!");
                     }
                 }
             }
+        }
+    }
+
+    public static class ListExtensions
+    {
+        public static T[] ToArrayExtension<T>(this Il2CppSystem.Collections.Generic.List<T> list)
+        {
+            T[] arr = new T[list.Count];
+            for (int x = 0; x < list.Count; x++)
+            {
+                arr[x] = list[x];
+            }
+            return arr;
         }
     }
 }
