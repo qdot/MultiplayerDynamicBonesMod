@@ -32,8 +32,8 @@ using MelonLoader;
 // Puede especificar todos los valores o usar los valores predeterminados de número de compilación y de revisión
 // utilizando el carácter "*", como se muestra a continuación:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyVersion("11")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
 [assembly: NeutralResourcesLanguage("en")]
-[assembly: MelonModInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", " release build 10", "DltDat/charlesdeep", "")]
+[assembly: MelonModInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", " release build 11", "DltDat/charlesdeep", "")]
 [assembly: MelonModGame("VRChat", "VRChat")]

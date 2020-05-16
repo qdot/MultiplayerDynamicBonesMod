@@ -51,32 +51,30 @@ namespace DBMod
             public static bool disallowDesktoppers;
         }
 
+        
         struct OriginalBoneInformation
         {
             public float updateRate;
             public float distanceToDisable;
-            public bool distantDisable;
             public List<DynamicBoneCollider> colliders;
-
             public DynamicBone referenceToOriginal;
+            public bool distantDisable;
         }
 
         private static NDB _Instance;
 
-        private Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>> old_avatarsInScene;
         private Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>> avatarsInScene;
-        private Dictionary<string, List<OriginalBoneInformation>> old_originalSettings;
         private Dictionary<string, List<OriginalBoneInformation>> originalSettings;
         private GameObject localPlayer;
-        private Transform localPlayerReferenceTransform;
-        private GameObject old_localPlayer;
+        //private Transform localPlayerReferenceTransform;
         private Transform toggleButton;
-
         private bool enabled = true;
 
         private static AvatarInstantiatedDelegate onAvatarInstantiatedDelegate;
         private static PlayerLeftDelegate onPlayerLeftDelegate;
         private static JoinedRoom onJoinedRoom;
+
+
 
 
         private static void Hook(IntPtr target, IntPtr detour)
@@ -91,7 +89,7 @@ namespace DBMod
 
             // clone of a standard button
             toggleButton = UnityEngine.Object.Instantiate(ourQUickMenu.Find("CameraMenu/BackButton").gameObject).transform;
-            if (toggleButton == null) MelonModLogger.Log(ConsoleColor.Blue, "no button");
+            if (toggleButton == null) MelonModLogger.Log(ConsoleColor.Red, "Couldn't add button for dynamic bones");
 
             // set button's parent to quick menu
             toggleButton.SetParent(ourQUickMenu.Find("ShortcutMenu"), false);
@@ -222,19 +220,19 @@ namespace DBMod
             }
         }
 
-        private static bool hasDumpedIt = false;
+        //private static bool hasDumpedIt = false;
         private static void OnAvatarInstantiated(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr, bool loaded)
         {
             onAvatarInstantiatedDelegate(@this, avatarPtr, avatarDescriptorPtr, loaded);
 
             try
             {
-                if (!hasDumpedIt)
-                {
-                    hasDumpedIt = true;
-                    _Instance.localPlayerReferenceTransform = GameObject.Find("VRCPlayer(Clone)").transform;
-                    //SceneManager.GetActiveScene().GetRootGameObjects().Select((go) => go.transform).Do((t) => RecursiveHierarchyDump(t, 0));
-                }
+                //if (!hasDumpedIt)
+                //{
+                //    hasDumpedIt = true;
+                //    _Instance.localPlayerReferenceTransform = GameObject.Find("VRCPlayer(Clone)").transform;
+                //    //SceneManager.GetActiveScene().GetRootGameObjects().Select((go) => go.transform).Do((t) => RecursiveHierarchyDump(t, 0));
+                //}
 
                 if (loaded)
                 {
@@ -268,6 +266,16 @@ namespace DBMod
 
         public void AddOrReplaceWithCleanup(string key, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> newValue)
         {
+            foreach(DynamicBoneCollider col in newValue.Item4)
+            {
+                if (NDBConfig.disallowInsideColliders && col.m_Bound == DynamicBoneCollider.EnumNPublicSealedvaOuIn3vUnique.Inside)
+                {
+                    newValue.Item3.Do((b) => b.m_Colliders.Remove(col));
+                    MelonModLogger.Log(ConsoleColor.Yellow, $"Removing bone {col.transform.name} because settings disallow inside colliders");
+                    GameObject.Destroy(col);
+                }
+            }
+
             if (!avatarsInScene.ContainsKey(key))
             {
                 SaveOriginalColliderList(key, newValue.Item3);
@@ -419,15 +427,9 @@ namespace DBMod
             }
 
             AddColliderToDynamicBone(bone, collider);
-            //bone.m_Colliders.Add(collider);
         }
 
-        //private void RestoreFromBackUp()
-        //{
-        //    avatarsInScene = old_avatarsInScene;
-        //    originalSettings = old_originalSettings;
-        //    localPlayer = old_localPlayer;
-        //}
+
 
 
         public override void OnUpdate()
@@ -451,11 +453,6 @@ namespace DBMod
                 ToggleState();
             }
 
-            //if (Input.GetKeyDown(KeyCode.F2))
-            //{
-
-            //}
-
             if (Input.GetKeyDown(KeyCode.F4))
             {
                 MelonModLogger.Log(ConsoleColor.Red, "List of avatar in dict:");
@@ -465,13 +462,6 @@ namespace DBMod
                 }
             }
 
-            //if (Input.GetKeyDown(KeyCode.F5))
-            //{
-            //    if (old_localPlayer != null && old_avatarsInScene != null && old_originalSettings != null)
-            //    {
-            //        RestoreFromBackUp();
-            //    }
-            //}
         }
 
         private void ToggleState()
@@ -513,7 +503,6 @@ namespace DBMod
             }
             originalSettings.Add(name, ogInfo);
             MelonModLogger.Log(ConsoleColor.DarkGreen, $"Saved original dynamic bone info of player {name}");
-            //originalSettings.Do((x) => MelonModLogger.Log(ConsoleColor.Red, x.Key));
         }
 
         private void RestoreOriginalColliderList()
@@ -525,7 +514,7 @@ namespace DBMod
                 {
                     if (originalSettings.TryGetValue(player.Key, out List<OriginalBoneInformation> origList))
                     {
-                        origList.DoIf((x) => x.referenceToOriginal.transform == db.transform, (origData) =>
+                        origList.DoIf((x) => ReferenceEquals(x, db), (origData) =>
                         {
                             db.m_Colliders.Clear();
                             origData.colliders.ForEach((dbc) => db.m_Colliders.Add(dbc));
