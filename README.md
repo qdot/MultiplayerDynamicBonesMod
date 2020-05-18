@@ -3,7 +3,7 @@ MultiplayerDynamicBonesMod
 How to install? Follow the Automatic Installation instructions at https://melonwiki.xyz/#/README?id=installation-on-il2cpp-games
 Then drop the mod dll in the Mods folder.
 
-TIP: pass -melonloader.console to vrchat as a launch parameter to show the game console, very useful when using mods.
+TIP: pass --melonloader.console to vrchat as a launch parameter to show the game console, very useful when using mods.
 
 
 Press F4 to dump a list of active players working with the mod, useful for debugging.
