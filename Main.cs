@@ -13,25 +13,15 @@ using UnhollowerBaseLib;
 using UnityEngine.Experimental.PlayerLoop;
 using VRC.Core;
 using VRC;
-using Viveport;
 using System.Reflection;
-using Microsoft.CSharp.RuntimeBinder;
 using System.Runtime.InteropServices;
-using Il2CppSystem.Reflection;
-using NET_SDK.Reflection;
 using VRCSDK2;
 using Il2CppSystem;
 using IntPtr = System.IntPtr;
 using ConsoleColor = System.ConsoleColor;
 using UnhollowerRuntimeLib;
 using IL2CPP = UnhollowerBaseLib.IL2CPP;
-using VRC.SDKBase;
-using UnityEngine.Events;
-using VRC.UI;
 using UnityEngine.UI;
-using System.IO;
-using Il2CppSystem.Threading;
-using System.Diagnostics;
 //using UnityEngine.UI;
 
 namespace DBMod
@@ -361,7 +351,7 @@ namespace DBMod
         private bool SelectBonesWithRules(KeyValuePair<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>> item)
         {
             bool valid = true;
-            //if (NDBConfig.onlyForMyBones) valid &= item.Value.Item1 == localPlayer;
+            if (NDBConfig.onlyForMyBones) valid &= item.Value.Item1 == localPlayer;
             if (NDBConfig.onlyForMeAndFriends) valid &= item.Value.Item5 || (item.Value.Item1 == localPlayer);
             if (NDBConfig.disallowDesktoppers) valid &= item.Value.Item2 || (item.Value.Item1 == localPlayer);
             return valid;
