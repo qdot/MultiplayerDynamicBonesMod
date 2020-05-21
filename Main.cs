@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -66,7 +66,7 @@ namespace DBMod
         private Transform toggleButton;
         private Transform onlyFriendsButton; //OnlyFans haha
         private bool enabled = true;
-        
+
         private float nextUpdateVisibility = 0;
         private const float visiblityUpdateRate = 1f;
 
@@ -79,29 +79,40 @@ namespace DBMod
             typeof(Imports).GetMethod("Hook", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).Invoke(null, new object[] { target, detour });
         }
 
-        private void AddToggleButton()
+        private Transform AddMenuButton(string butName, string butText, int butX, int butY, System.Action butAction)
         {
             Transform quickMenu = QuickMenu.prop_QuickMenu_0.transform;
             RecursiveHierarchyDump(quickMenu, 0);
+
             // clone of a standard button
-            toggleButton = UnityEngine.Object.Instantiate(quickMenu.Find("CameraMenu/BackButton").gameObject).transform;
-            if (toggleButton == null) MelonModLogger.Log(ConsoleColor.Red, "Couldn't add button for dynamic bones");
-            toggleButton.name = "NDBToggle";
+            Transform butTransform = UnityEngine.Object.Instantiate(quickMenu.Find("CameraMenu/BackButton").gameObject).transform;
+            if (butTransform == null) MelonModLogger.Log(ConsoleColor.Red, "Couldn't add button for dynamic bones");
+            butTransform.name = butName;
 
             // set button's parent to quick menu
-            toggleButton.SetParent(quickMenu.Find("ShortcutMenu"), false);
+            butTransform.SetParent(quickMenu.Find("ShortcutMenu"), false);
 
-            // set button text
-            toggleButton.GetComponentInChildren<Text>().text = $"Press to {((enabled) ? "disable" : "enable")} Dynamic Bones mod";
+            // set button's text
+            butTransform.GetComponentInChildren<Text>().text = butText;
 
             // set position of new button based on existing menu buttons
             float buttonWidth = quickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - quickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
             float buttonHeight = quickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - quickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
-            toggleButton.localPosition = new Vector3(toggleButton.localPosition.x + buttonWidth * NDBConfig.toggleButtonX, toggleButton.localPosition.y + buttonHeight * NDBConfig.toggleButtonY, toggleButton.localPosition.z);
+            butTransform.localPosition = new Vector3(butTransform.localPosition.x + buttonWidth * butX, butTransform.localPosition.y + buttonHeight * butY, butTransform.localPosition.z);
 
             // Make it so the button does what we want
-            toggleButton.GetComponent<Button>().onClick = new Button.ButtonClickedEvent();
-            toggleButton.GetComponent<Button>().onClick.AddListener(new System.Action(() =>
+            butTransform.GetComponent<Button>().onClick = new Button.ButtonClickedEvent();
+            butTransform.GetComponent<Button>().onClick.AddListener(butAction);
+
+            // enable it just in case
+            butTransform.gameObject.SetActive(true);
+
+            return butTransform;
+        }
+
+        private void AddButtons()
+        {
+            toggleButton = this.AddMenuButton("NDBToggle", $"Press to {((enabled) ? "disable" : "enable")} Dynamic Bones mod", NDBConfig.toggleButtonX, NDBConfig.toggleButtonY, new System.Action(() =>
             {
                 try
                 {
@@ -109,30 +120,8 @@ namespace DBMod
                 }
                 catch (System.Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); }
             }));
-
-            // enable it just in case
-            toggleButton.gameObject.SetActive(true);
-        }
-
-        private void AddOnlyFriendsButton()
-        {
-            Transform quickMenu = QuickMenu.prop_QuickMenu_0.transform;
-            
-            onlyFriendsButton = UnityEngine.Object.Instantiate(quickMenu.Find("CameraMenu/BackButton").gameObject).transform;
-            if (onlyFriendsButton == null) MelonModLogger.Log(ConsoleColor.Red, "Couldn't add friends toggle button for dynamic bones");
-            onlyFriendsButton.name = "NDBFriends";
-
-            onlyFriendsButton.SetParent(quickMenu.Find("ShortcutMenu"), false);
-
-            onlyFriendsButton.GetComponentInChildren<Text>().text = $"Press to allow {((NDBConfig.onlyForMeAndFriends) ? "everyone" : "only friends")} to have multiplayer dynamic bones.";
-
-            float buttonWidth = quickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - quickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
-            float buttonHeight = quickMenu.Find("UserInteractMenu/ForceLogoutButton").localPosition.x - quickMenu.Find("UserInteractMenu/BanButton").localPosition.x;
-            onlyFriendsButton.localPosition = new Vector3(onlyFriendsButton.localPosition.x + buttonWidth * 2f, onlyFriendsButton.localPosition.y + buttonHeight * 1f, onlyFriendsButton.localPosition.z);
-            //onlyFriendsButton.localScale = new Vector3(onlyFriendsButton.localScale.x * 0.5f, onlyFriendsButton.localScale.y * 0.5f, onlyFriendsButton.localScale.z);
-
-            onlyFriendsButton.GetComponent<Button>().onClick = new Button.ButtonClickedEvent();
-            onlyFriendsButton.GetComponent<Button>().onClick.AddListener(new System.Action(() =>
+            /*
+            onlyFriendsButton = this.AddMenuButton("NDBFriends", $"Press to allow {((NDBConfig.onlyForMeAndFriends) ? "everyone" : "only friends")} to have multiplayer dynamic bones.", 2, 1, new System.Action(() =>
             {
                 try
                 {
@@ -146,14 +135,7 @@ namespace DBMod
                 }
                 catch (System.Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); }
             }));
-
-            onlyFriendsButton.gameObject.SetActive(true);
-        }
-
-        private void AddButtons()
-        {
-            AddToggleButton();
-            //AddOnlyFriendsButton();
+            */
         }
 
         public override void VRChat_OnUiManagerInit()
@@ -469,7 +451,8 @@ namespace DBMod
 
         public override void OnUpdate()
         {
-            if (avatarRenderers.Count != 0 && NDBConfig.enableBoundsCheck) EnableIfVisible();
+            if (avatarRenderers != null)
+                if (avatarRenderers.Count != 0 && NDBConfig.enableBoundsCheck) EnableIfVisible();
 
             if (Input.GetKeyDown(KeyCode.F8))
             {
