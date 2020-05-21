@@ -66,7 +66,7 @@ namespace DBMod
         private Transform toggleButton;
         private Transform onlyFriendsButton; //OnlyFans haha
         private bool enabled = true;
-        
+
         private float nextUpdateVisibility = 0;
         private const float visiblityUpdateRate = 1f;
 
@@ -451,7 +451,8 @@ namespace DBMod
 
         public override void OnUpdate()
         {
-            if (avatarRenderers.Count != 0 && NDBConfig.enableBoundsCheck) EnableIfVisible();
+            if (avatarRenderers != null)
+                if (avatarRenderers.Count != 0 && NDBConfig.enableBoundsCheck) EnableIfVisible();
 
             if (Input.GetKeyDown(KeyCode.F8))
             {
