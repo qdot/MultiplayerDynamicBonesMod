@@ -10,7 +10,7 @@ using MelonLoader;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Multiplayer Dynamic Bones")]
-[assembly: AssemblyCopyright("Copyright ©  2020")]
+[assembly: AssemblyCopyright("Copyleft \uD83C 2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -32,8 +32,8 @@ using MelonLoader;
 // Puede especificar todos los valores o usar los valores predeterminados de número de compilación y de revisión
 // utilizando el carácter "*", como se muestra a continuación:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("13")]
+[assembly: AssemblyVersion("16")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
 [assembly: NeutralResourcesLanguage("en")]
-[assembly: MelonModInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", " release build 13", "DltDat/charlesdeep", "https://github.com/charlesdeepk/MultiplayerDynamicBonesMod/releases/")]
+[assembly: MelonModInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", " release build 16", "DltDat/charlesdeep", "https://github.com/charlesdeepk/MultiplayerDynamicBonesMod/releases/")]
 [assembly: MelonModGame("VRChat", "VRChat")]

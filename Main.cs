@@ -1,28 +1,16 @@
+using Harmony;
+using MelonLoader;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MelonLoader;
-using Unity;
-using UnityEngine;
-using Harmony;
-using NET_SDK;
-using UnityEngine.SceneManagement;
-using UnhollowerBaseLib;
-using UnityEngine.Experimental.PlayerLoop;
-using VRC.Core;
-using VRC;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using VRCSDK2;
-using Il2CppSystem;
-using IntPtr = System.IntPtr;
-using ConsoleColor = System.ConsoleColor;
-using UnhollowerRuntimeLib;
-using IL2CPP = UnhollowerBaseLib.IL2CPP;
+using System.Text;
+using UnityEngine;
 using UnityEngine.UI;
-//using UnityEngine.UI;
+using VRC;
+using VRC.Core;
+using ConsoleColor = System.ConsoleColor;
+using IntPtr = System.IntPtr;
 
 namespace DBMod
 {
@@ -44,9 +32,10 @@ namespace DBMod
             public static int toggleButtonY;
             public static bool enableBoundsCheck;
             public static float visiblityUpdateRate;
+            public static bool onlyHandColliders;
         }
 
-        
+
         struct OriginalBoneInformation
         {
             public float updateRate;
@@ -64,7 +53,7 @@ namespace DBMod
         private GameObject localPlayer;
         //private Transform localPlayerReferenceTransform;
         private Transform toggleButton;
-        private Transform onlyFriendsButton; //OnlyFans haha
+        //private Transform onlyFriendsButton; //OnlyFans haha
         private bool enabled = true;
 
         private float nextUpdateVisibility = 0;
@@ -82,7 +71,7 @@ namespace DBMod
         private Transform AddMenuButton(string butName, string butText, int butX, int butY, System.Action butAction)
         {
             Transform quickMenu = QuickMenu.prop_QuickMenu_0.transform;
-            RecursiveHierarchyDump(quickMenu, 0);
+            //RecursiveHierarchyDump(quickMenu, 0);
 
             // clone of a standard button
             Transform butTransform = UnityEngine.Object.Instantiate(quickMenu.Find("CameraMenu/BackButton").gameObject).transform;
@@ -149,7 +138,7 @@ namespace DBMod
 
         public unsafe override void OnApplicationStart()
         {
-            
+
 
 
 
@@ -170,6 +159,7 @@ namespace DBMod
             ModPrefs.RegisterPrefInt("NDB", "ButtonPositionY", 1, "Y position of button");
             ModPrefs.RegisterPrefBool("NDB", "EnableJustIfVisible", true, "Enable dynamic bones just if they are visible");
             ModPrefs.RegisterPrefFloat("NDB", "VisibilityUpdateRate", 1f, "Visibility update rate (seconds)");
+            ModPrefs.RegisterPrefBool("NDB", "OnlyHandColliders", false, "Only enable colliders in hands");
 
             MelonModLogger.Log(ConsoleColor.DarkGreen, "Saved default configuration");
 
@@ -187,6 +177,7 @@ namespace DBMod
             NDBConfig.toggleButtonY = ModPrefs.GetInt("NDB", "ButtonPositionY");
             NDBConfig.enableBoundsCheck = ModPrefs.GetBool("NDB", "EnableJustIfVisible");
             NDBConfig.visiblityUpdateRate = ModPrefs.GetFloat("NDB", "VisibilityUpdateRate");
+            NDBConfig.onlyHandColliders = ModPrefs.GetBool("NDB", "OnlyHandColliders");
 
 
             enabled = NDBConfig.enabledByDefault;
@@ -235,7 +226,7 @@ namespace DBMod
             {
                 onPlayerLeftDelegate(@this, playerPtr);
                 return;
-                
+
             }
 
             _Instance.RemoveBonesOfGameObjectInAllPlayers(_Instance.avatarsInScene[player.field_Internal_VRCPlayer_0.namePlate.prop_String_0].Item4);
@@ -257,7 +248,7 @@ namespace DBMod
             for (int x = 0; x < child.childCount; x++)
             {
                 RecursiveHierarchyDump(child.GetChild(x), c + 1);
-                
+
             }
         }
 
@@ -300,7 +291,7 @@ namespace DBMod
 
         public void AddOrReplaceWithCleanup(string key, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> newValue)
         {
-            foreach(DynamicBoneCollider col in newValue.Item4)
+            foreach (DynamicBoneCollider col in newValue.Item4)
             {
                 if (NDBConfig.disallowInsideColliders && col.m_Bound == DynamicBoneCollider.EnumNPublicSealedvaOuIn3vUnique.Inside)
                 {
@@ -327,7 +318,7 @@ namespace DBMod
                 MelonModLogger.Log(ConsoleColor.Blue, $"User {key} swapped avatar, system updated");
             }
             if (enabled) AddBonesOfGameObjectToAllPlayers(newValue);
-             AddDynamicBonesToVisibilityList(key, newValue.Item3, newValue.Item1.GetComponentInChildren<SkinnedMeshRenderer>());
+            if (newValue.Item1 != localPlayer) AddDynamicBonesToVisibilityList(key, newValue.Item3, newValue.Item1.GetComponentInChildren<SkinnedMeshRenderer>());
         }
 
         private bool SelectBonesWithRules(KeyValuePair<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>> item)
@@ -344,6 +335,14 @@ namespace DBMod
             bool valid = true;
             if (NDBConfig.onlyForMeAndFriends) valid &= item.Value.Item5 || (item.Value.Item1 == localPlayer);
             if (NDBConfig.disallowDesktoppers) valid &= item.Value.Item2;
+            //if (NDB.NDBConfig.onlyHandColliders) valid &= item.Value.Item1.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftHand).
+            return valid;
+        }
+
+        private bool ColliderMeetsRules(DynamicBoneCollider coll,  System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> item)
+        {
+            bool valid = true;
+            if (NDBConfig.onlyHandColliders) valid &= coll.transform.IsChildOf(item.Item1.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftHand).parent) || coll.transform.IsChildOf(item.Item1.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.RightHand).parent);
             return valid;
         }
 
@@ -357,7 +356,7 @@ namespace DBMod
 
         private void AddAllCollidersToAllPlayers()
         {
-            foreach(System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> player in avatarsInScene.Values)
+            foreach (System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> player in avatarsInScene.Values)
             {
                 AddBonesOfGameObjectToAllPlayers(player);
             }
@@ -394,7 +393,10 @@ namespace DBMod
                 {
                     foreach (DynamicBoneCollider playerCollider in player.Item4)
                     {
-                        AddColliderToBone(playerBone, playerCollider);
+                        if (ColliderMeetsRules(playerCollider, player))
+                        {
+                            AddColliderToBone(playerBone, playerCollider);
+                        }
                     }
                 }
             }
@@ -452,7 +454,9 @@ namespace DBMod
         public override void OnUpdate()
         {
             if (avatarRenderers != null)
+            {
                 if (avatarRenderers.Count != 0 && NDBConfig.enableBoundsCheck) EnableIfVisible();
+            }
 
             if (Input.GetKeyDown(KeyCode.F8))
             {
