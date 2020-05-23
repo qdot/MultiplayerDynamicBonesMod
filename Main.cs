@@ -33,6 +33,7 @@ namespace DBMod
             public static bool enableBoundsCheck;
             public static float visiblityUpdateRate;
             public static bool onlyHandColliders;
+            public static bool keybindsEnabled;
         }
 
 
@@ -160,6 +161,7 @@ namespace DBMod
             ModPrefs.RegisterPrefBool("NDB", "EnableJustIfVisible", true, "Enable dynamic bones just if they are visible");
             ModPrefs.RegisterPrefFloat("NDB", "VisibilityUpdateRate", 1f, "Visibility update rate (seconds)");
             ModPrefs.RegisterPrefBool("NDB", "OnlyHandColliders", false, "Only enable colliders in hands");
+            ModPrefs.RegisterPrefBool("NDB", "KeybindsEnabled", true, "Enable keyboard actuation");
 
             MelonModLogger.Log(ConsoleColor.DarkGreen, "Saved default configuration");
 
@@ -178,7 +180,7 @@ namespace DBMod
             NDBConfig.enableBoundsCheck = ModPrefs.GetBool("NDB", "EnableJustIfVisible");
             NDBConfig.visiblityUpdateRate = ModPrefs.GetFloat("NDB", "VisibilityUpdateRate");
             NDBConfig.onlyHandColliders = ModPrefs.GetBool("NDB", "OnlyHandColliders");
-
+            NDBConfig.keybindsEnabled = ModPrefs.GetBool("NDB", "KeybindsEnabled");
 
             enabled = NDBConfig.enabledByDefault;
             IntPtr funcToHook = (IntPtr)typeof(VRCAvatarManager.MulticastDelegateNPublicSealedVoGaVRBoObVoInBeInGaUnique).GetField("NativeMethodInfoPtr_Invoke_Public_Virtual_New_Void_GameObject_VRC_AvatarDescriptor_Boolean_0", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
@@ -457,6 +459,8 @@ namespace DBMod
             {
                 if (avatarRenderers.Count != 0 && NDBConfig.enableBoundsCheck) EnableIfVisible();
             }
+
+            if (!NDBConfig.keybindsEnabled) return;
 
             if (Input.GetKeyDown(KeyCode.F8))
             {
