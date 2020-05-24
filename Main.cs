@@ -163,7 +163,7 @@ namespace DBMod
             ModPrefs.RegisterPrefFloat("NDB", "VisibilityUpdateRate", 1f, "Visibility update rate (seconds)");
             ModPrefs.RegisterPrefBool("NDB", "OnlyHandColliders", false, "Only enable colliders in hands");
             ModPrefs.RegisterPrefBool("NDB", "KeybindsEnabled", true, "Enable keyboard actuation");
-            ModPrefs.RegisterPrefBool("NDB", "OptimizeOnly", true, "Just optimize the dynamic bones of the scene, don't enable interaction");
+            ModPrefs.RegisterPrefBool("NDB", "OptimizeOnly", false, "Just optimize the dynamic bones of the scene, don't enable interaction");
 
             MelonModLogger.Log(ConsoleColor.DarkGreen, "Saved default configuration");
 
