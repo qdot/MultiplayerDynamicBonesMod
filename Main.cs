@@ -3,6 +3,7 @@ using MelonLoader;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
@@ -27,7 +28,7 @@ namespace DBMod
             public static bool onlyForMyBones;
             public static bool onlyForMeAndFriends;
             public static bool disallowDesktoppers;
-            public static bool enableModUI;
+            public static bool enableFallbackModUi;
             public static int toggleButtonX;
             public static int toggleButtonY;
             public static bool enableBoundsCheck;
@@ -111,41 +112,39 @@ namespace DBMod
                 }
                 catch (System.Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); }
             }));
-            /*
-            onlyFriendsButton = this.AddMenuButton("NDBFriends", $"Press to allow {((NDBConfig.onlyForMeAndFriends) ? "everyone" : "only friends")} to have multiplayer dynamic bones.", 2, 1, new System.Action(() =>
-            {
-                try
-                {
-                    NDBConfig.onlyForMeAndFriends = !NDBConfig.onlyForMeAndFriends;
-                    if (enabled)
-                    {
-                        ToggleState();
-                        ToggleState();
-                    }
-                    onlyFriendsButton.GetComponentInChildren<Text>().text = $"Press to allow {((NDBConfig.onlyForMeAndFriends) ? "everyone" : "only friends")} to have multiplayer dynamic bones.";
-                }
-                catch (System.Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); }
-            }));
-            */
         }
 
         public override void VRChat_OnUiManagerInit()
         {
-            if (NDBConfig.enableModUI) AddButtons();
+            if (NDBConfig.enableFallbackModUi) AddButtons();
         }
 
         private delegate void AvatarInstantiatedDelegate(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr, bool loaded);
         private delegate void PlayerLeftDelegate(IntPtr @this, IntPtr playerPtr);
         private delegate void JoinedRoom(IntPtr @this);
 
+
+        private void UiExpansionKit_AddSimpleMenuButton(Type uiKitApiType, int mode, string text, Action onClick, Action<GameObject> onShow)
+        {
+            uiKitApiType.GetMethod("RegisterSimpleMenuButton", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static).Invoke(null, new object[] { mode, text, onClick, onShow });
+        }
+
         public unsafe override void OnApplicationStart()
         {
-
-
-
-
             _Instance = this;
 
+            RegisterModPrefs();
+
+            OnModSettingsApplied();
+            enabled = NDBConfig.enabledByDefault;
+
+            AddUI();
+
+            HookCallbackFunctions();
+        }
+
+        private static unsafe void RegisterModPrefs()
+        {
             ModPrefs.RegisterCategory("NDB", "Multiplayer Dynamic Bones");
             ModPrefs.RegisterPrefBool("NDB", "EnabledByDefault", true, "Enabled by default");
             ModPrefs.RegisterPrefBool("NDB", "OnlyMe", false, "Only I can interact with other bones");
@@ -156,36 +155,18 @@ namespace DBMod
             ModPrefs.RegisterPrefBool("NDB", "DisallowInsideColliders", true, "Disallow inside colliders");
             ModPrefs.RegisterPrefFloat("NDB", "ColliderSizeLimit", 1f, "Collider size limit");
             ModPrefs.RegisterPrefInt("NDB", "DynamicBoneUpdateRate", 60, "Dynamic bone update rate");
-            ModPrefs.RegisterPrefBool("NDB", "EnableModUI", true, "Enables mod UI");
-            ModPrefs.RegisterPrefInt("NDB", "ButtonPositionX", 1, "X position of button");
-            ModPrefs.RegisterPrefInt("NDB", "ButtonPositionY", 1, "Y position of button");
-            ModPrefs.RegisterPrefBool("NDB", "EnableJustIfVisible", true, "Enable dynamic bones just if they are visible");
+            ModPrefs.RegisterPrefBool("NDB", "EnableModUI", true, "Enables mod UI", true);
+            ModPrefs.RegisterPrefInt("NDB", "ButtonPositionX", 1, "X position of button", true);
+            ModPrefs.RegisterPrefInt("NDB", "ButtonPositionY", 1, "Y position of button", true);
+            ModPrefs.RegisterPrefBool("NDB", "EnableJustIfVisible", true, "Enable dynamic bones just if they are on view");
             ModPrefs.RegisterPrefFloat("NDB", "VisibilityUpdateRate", 1f, "Visibility update rate (seconds)");
             ModPrefs.RegisterPrefBool("NDB", "OnlyHandColliders", false, "Only enable colliders in hands");
-            ModPrefs.RegisterPrefBool("NDB", "KeybindsEnabled", true, "Enable keyboard actuation");
+            ModPrefs.RegisterPrefBool("NDB", "KeybindsEnabled", true, "Enable keyboard actuation(F1, F4 and F8)");
             ModPrefs.RegisterPrefBool("NDB", "OptimizeOnly", false, "Just optimize the dynamic bones of the scene, don't enable interaction");
+        }
 
-            MelonModLogger.Log(ConsoleColor.DarkGreen, "Saved default configuration");
-
-            NDBConfig.enabledByDefault = ModPrefs.GetBool("NDB", "EnabledByDefault");
-            NDBConfig.disallowInsideColliders = ModPrefs.GetBool("NDB", "DisallowInsideColliders");
-            NDBConfig.distanceToDisable = ModPrefs.GetFloat("NDB", "DistanceToDisable");
-            NDBConfig.distanceDisable = ModPrefs.GetBool("NDB", "DistanceDisable");
-            NDBConfig.colliderSizeLimit = ModPrefs.GetFloat("NDB", "ColliderSizeLimit");
-            NDBConfig.onlyForMyBones = ModPrefs.GetBool("NDB", "OnlyMe");
-            NDBConfig.onlyForMeAndFriends = ModPrefs.GetBool("NDB", "OnlyFriends");
-            NDBConfig.dynamicBoneUpdateRate = ModPrefs.GetInt("NDB", "DynamicBoneUpdateRate");
-            NDBConfig.disallowDesktoppers = ModPrefs.GetBool("NDB", "DisallowDesktoppers");
-            NDBConfig.enableModUI = ModPrefs.GetBool("NDB", "EnableModUI");
-            NDBConfig.toggleButtonX = ModPrefs.GetInt("NDB", "ButtonPositionX");
-            NDBConfig.toggleButtonY = ModPrefs.GetInt("NDB", "ButtonPositionY");
-            NDBConfig.enableBoundsCheck = ModPrefs.GetBool("NDB", "EnableJustIfVisible");
-            NDBConfig.visiblityUpdateRate = ModPrefs.GetFloat("NDB", "VisibilityUpdateRate");
-            NDBConfig.onlyHandColliders = ModPrefs.GetBool("NDB", "OnlyHandColliders");
-            NDBConfig.keybindsEnabled = ModPrefs.GetBool("NDB", "KeybindsEnabled");
-            NDBConfig.onlyOptimize = ModPrefs.GetBool("NDB", "OptimizeOnly");
-
-            enabled = NDBConfig.enabledByDefault;
+        private unsafe void HookCallbackFunctions()
+        {
             IntPtr funcToHook = (IntPtr)typeof(VRCAvatarManager.MulticastDelegateNPublicSealedVoGaVRBoObVoInBeInGaUnique).GetField("NativeMethodInfoPtr_Invoke_Public_Virtual_New_Void_GameObject_VRC_AvatarDescriptor_Boolean_0", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
 
             Hook(funcToHook, new System.Action<IntPtr, IntPtr, IntPtr, bool>(OnAvatarInstantiated).Method.MethodHandle.GetFunctionPointer());
@@ -210,6 +191,44 @@ namespace DBMod
                 this.enabled = false;
                 MelonModLogger.Log(ConsoleColor.Red, "Multiplayer Dynamic Bones mod suffered a critical error! Please remove from the Mods folder to avoid game crashes! \nContact me for support.");
             }
+        }
+
+        private unsafe void AddUI()
+        {
+            Type uiKitApi = null;
+            AppDomain.CurrentDomain.GetAssemblies().DoIf(_ => uiKitApi == null, ass => ass.GetTypes().DoIf(t => t.Name == "ExpansionKitApi", t => uiKitApi = t));
+            MelonModLogger.Log(ConsoleColor.DarkBlue, "Checking if UIExpansionKit (by knah) is present and adding mod UI");
+            if (uiKitApi != null)
+            {
+                MelonModLogger.Log(ConsoleColor.Blue, "UIExpansionKit is present");
+                UiExpansionKit_AddSimpleMenuButton(uiKitApi, 0, $"Press to {((enabled == true) ? "disable" : "enable")} Multiplayer Dynamic Bones mod", () => ToggleState(), (button) => toggleButton = button.transform);
+                NDBConfig.enableFallbackModUi = false;
+            }
+            else
+            {
+                MelonModLogger.Log(ConsoleColor.Red, "UiExpansionKit is not present. Using fallback simple toggle button.");
+            }
+        }
+
+        public override void OnModSettingsApplied()
+        {
+            NDBConfig.enabledByDefault = ModPrefs.GetBool("NDB", "EnabledByDefault");
+            NDBConfig.disallowInsideColliders = ModPrefs.GetBool("NDB", "DisallowInsideColliders");
+            NDBConfig.distanceToDisable = ModPrefs.GetFloat("NDB", "DistanceToDisable");
+            NDBConfig.distanceDisable = ModPrefs.GetBool("NDB", "DistanceDisable");
+            NDBConfig.colliderSizeLimit = ModPrefs.GetFloat("NDB", "ColliderSizeLimit");
+            NDBConfig.onlyForMyBones = ModPrefs.GetBool("NDB", "OnlyMe");
+            NDBConfig.onlyForMeAndFriends = ModPrefs.GetBool("NDB", "OnlyFriends");
+            NDBConfig.dynamicBoneUpdateRate = ModPrefs.GetInt("NDB", "DynamicBoneUpdateRate");
+            NDBConfig.disallowDesktoppers = ModPrefs.GetBool("NDB", "DisallowDesktoppers");
+            NDBConfig.enableFallbackModUi = ModPrefs.GetBool("NDB", "EnableModUI");
+            NDBConfig.toggleButtonX = ModPrefs.GetInt("NDB", "ButtonPositionX");
+            NDBConfig.toggleButtonY = ModPrefs.GetInt("NDB", "ButtonPositionY");
+            NDBConfig.enableBoundsCheck = ModPrefs.GetBool("NDB", "EnableJustIfVisible");
+            NDBConfig.visiblityUpdateRate = ModPrefs.GetFloat("NDB", "VisibilityUpdateRate");
+            NDBConfig.onlyHandColliders = ModPrefs.GetBool("NDB", "OnlyHandColliders");
+            NDBConfig.keybindsEnabled = ModPrefs.GetBool("NDB", "KeybindsEnabled");
+            NDBConfig.onlyOptimize = ModPrefs.GetBool("NDB", "OptimizeOnly");
         }
 
         private static void OnJoinedRoom(IntPtr @this)
@@ -340,11 +359,10 @@ namespace DBMod
             bool valid = true;
             if (NDBConfig.onlyForMeAndFriends) valid &= item.Value.Item5 || (item.Value.Item1 == localPlayer);
             if (NDBConfig.disallowDesktoppers) valid &= item.Value.Item2;
-            //if (NDB.NDBConfig.onlyHandColliders) valid &= item.Value.Item1.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftHand).
             return valid;
         }
 
-        private bool ColliderMeetsRules(DynamicBoneCollider coll,  System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> item)
+        private bool ColliderMeetsRules(DynamicBoneCollider coll, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> item)
         {
             bool valid = true;
             if (NDBConfig.onlyHandColliders) valid &= coll.transform.IsChildOf(item.Item1.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftHand).parent) || coll.transform.IsChildOf(item.Item1.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.RightHand).parent);
@@ -356,7 +374,7 @@ namespace DBMod
             bone.m_DistantDisable = NDBConfig.distanceDisable;
             bone.m_DistanceToObject = NDBConfig.distanceToDisable;
             bone.m_UpdateRate = NDBConfig.dynamicBoneUpdateRate;
-            bone.m_ReferenceObject = localPlayer?.transform ?? bone.m_ReferenceObject;// (localPlayer?.transform ?? localPlayerReferenceTransform) ?? bone.m_ReferenceObject;
+            bone.m_ReferenceObject = localPlayer?.transform ?? bone.m_ReferenceObject;
         }
 
         private void AddAllCollidersToAllPlayers()
@@ -531,7 +549,12 @@ namespace DBMod
             }
             else AddAllCollidersToAllPlayers();
 
-            toggleButton.GetComponentInChildren<Text>().text = $"Press to {((enabled) ? "disable" : "enable")} Dynamic Bones mod";
+            try
+            {
+                toggleButton.GetComponentInChildren<Text>().text = $"Press to {((enabled == true) ? "disable" : "enable")} Multiplayer Dynamic Bones mod";
+            }
+            catch { }
+            if (NDBConfig.enableFallbackModUi) toggleButton.GetComponentInChildren<Text>().text = $"Press to {((enabled) ? "disable" : "enable")} Dynamic Bones mod";
         }
 
         private void RemovePlayerFromDict(string name)
