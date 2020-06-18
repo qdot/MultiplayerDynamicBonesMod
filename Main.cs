@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
 using VRC;
@@ -20,8 +21,8 @@ namespace DBMod
 {
     internal class NDB : MelonMod
     {
-        public const int VERSION = 23;
-        public const string VERSION_STR = " release build 23";
+        public const int VERSION = 24;
+        public const string VERSION_STR = " release build 24";
 
         private static class NDBConfig
         {
@@ -149,7 +150,7 @@ namespace DBMod
             
             if (NDBConfig.updateMode == 2)
             {
-                CheckForUpdates();
+                new Thread(new ThreadStart(CheckForUpdates)).Start();
             }
             else if (NDBConfig.updateMode == 0)
             {
@@ -188,6 +189,7 @@ namespace DBMod
             if (MessageBox(IntPtr.Zero, "There is an update avaiable for Multiplayer Dynamic Bones. Do you want to launch the internet browser?", "Multiplayer Dynamic Bones mod", 0x04 | 0x40 | 0x1000) == 6)
             {
                 Process.Start(url);
+                MessageBox(IntPtr.Zero, "Please replace the file and restart VRChat for the update to apply", "Multiplayer Dynamic Bones mod", 0x40 | 0x1000);
             }
             
         }
@@ -450,8 +452,11 @@ namespace DBMod
                 }
                 if (NDBConfig.disallowDesktoppers)
                 {
-                    MelonModLogger.Log(ConsoleColor.DarkYellow, $"Not adding bones of player {avatarsInScene.First((x) => x.Value.Item1 == player.Item1).Key} because settings disallow desktopper");
-                    if (!player.Item2) return;
+                    if (!player.Item2)
+                    {
+                        MelonModLogger.Log(ConsoleColor.DarkYellow, $"Not adding bones of player {avatarsInScene.First((x) => x.Value.Item1 == player.Item1).Key} because settings disallow desktopper");
+                        return;
+                    }
                 }
             }
 
