@@ -2,7 +2,10 @@ using Harmony;
 using MelonLoader;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -17,6 +20,9 @@ namespace DBMod
 {
     internal class NDB : MelonMod
     {
+        public const int VERSION = 23;
+        public const string VERSION_STR = " release build 23";
+
         private static class NDBConfig
         {
             public static float distanceToDisable;
@@ -36,6 +42,7 @@ namespace DBMod
             public static bool onlyHandColliders;
             public static bool keybindsEnabled;
             public static bool onlyOptimize;
+            public static int updateMode;
         }
 
 
@@ -129,6 +136,9 @@ namespace DBMod
             uiKitApiType.GetMethod("RegisterSimpleMenuButton", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static).Invoke(null, new object[] { mode, text, onClick, onShow });
         }
 
+        [DllImport("User32.dll", CharSet = CharSet.Unicode)]
+        static extern int MessageBox(IntPtr nWnd, string text, string title, uint type);
+
         public unsafe override void OnApplicationStart()
         {
             _Instance = this;
@@ -136,11 +146,50 @@ namespace DBMod
             RegisterModPrefs();
 
             OnModSettingsApplied();
+            
+            if (NDBConfig.updateMode == 2)
+            {
+                CheckForUpdates();
+            }
+            else if (NDBConfig.updateMode == 0)
+            {
+                int result = MessageBox(IntPtr.Zero, "Multiplayer Dynamic Bones can check for updates and notify you when one is avaiable. Do you want to enable update checks?", "Multiplayer Dynamic Bones mod", 0x04 | 0x40 | 0x1000 | 0x010000);
+                if (result == 6)
+                {
+                    NDBConfig.updateMode = 2;
+                }
+                else if (result == 7)
+                {
+                    NDBConfig.updateMode = 1;
+                }
+                ModPrefs.SetInt("NDB", "UpdateMode", NDBConfig.updateMode);
+            }
+
             enabled = NDBConfig.enabledByDefault;
 
             AddUI();
 
             HookCallbackFunctions();
+        }
+
+        private void CheckForUpdates()
+        {
+            string url = $"https://github.com/charlesdeepk/MultiplayerDynamicBonesMod/releases/tag/{VERSION + 1}";
+            WebClient client = new WebClient();
+            try
+            {
+                _ = client.DownloadString(url);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (MessageBox(IntPtr.Zero, "There is an update avaiable for Multiplayer Dynamic Bones. Do you want to launch the internet browser?", "Multiplayer Dynamic Bones mod", 0x04 | 0x40 | 0x1000) == 6)
+            {
+                Process.Start(url);
+            }
+            
         }
 
         private static unsafe void RegisterModPrefs()
@@ -163,6 +212,7 @@ namespace DBMod
             ModPrefs.RegisterPrefBool("NDB", "OnlyHandColliders", false, "Only enable colliders in hands");
             ModPrefs.RegisterPrefBool("NDB", "KeybindsEnabled", true, "Enable keyboard actuation(F1, F4 and F8)");
             ModPrefs.RegisterPrefBool("NDB", "OptimizeOnly", false, "Just optimize the dynamic bones of the scene, don't enable interaction");
+            ModPrefs.RegisterPrefInt("NDB", "UpdateMode", 0, "A value of 2 will notify the user when a new version of the mod is avaiable, while 1 will not.");
         }
 
         private unsafe void HookCallbackFunctions()
@@ -228,6 +278,8 @@ namespace DBMod
             NDBConfig.onlyHandColliders = ModPrefs.GetBool("NDB", "OnlyHandColliders");
             NDBConfig.keybindsEnabled = ModPrefs.GetBool("NDB", "KeybindsEnabled");
             NDBConfig.onlyOptimize = ModPrefs.GetBool("NDB", "OptimizeOnly");
+            NDBConfig.updateMode = ModPrefs.GetInt("NDB", "UpdateMode");
+
         }
 
         private static void OnJoinedRoom(IntPtr @this)
