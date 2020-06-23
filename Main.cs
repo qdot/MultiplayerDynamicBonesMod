@@ -186,7 +186,7 @@ namespace DBMod
                 return;
             }
 
-            if (MessageBox(IntPtr.Zero, "There is an update avaiable for Multiplayer Dynamic Bones. Do you want to launch the internet browser?", "Multiplayer Dynamic Bones mod", 0x04 | 0x40 | 0x1000) == 6)
+            if (MessageBox(IntPtr.Zero, "There is an update avaiable for Multiplayer Dynamic Bones. Not updating could result in the mod not working or the gamje crashing. Do you want to launch the internet browser?", "Multiplayer Dynamic Bones mod", 0x04 | 0x40 | 0x1000) == 6)
             {
                 Process.Start(url);
                 MessageBox(IntPtr.Zero, "Please replace the file and restart VRChat for the update to apply", "Multiplayer Dynamic Bones mod", 0x40 | 0x1000);
@@ -652,14 +652,21 @@ namespace DBMod
                 {
                     if (originalSettings.TryGetValue(player.Key, out List<OriginalBoneInformation> origList))
                     {
-                        origList.DoIf((x) => ReferenceEquals(x, db), (origData) =>
+                        try
                         {
-                            db.m_Colliders.Clear();
-                            origData.colliders.ForEach((dbc) => db.m_Colliders.Add(dbc));
-                            db.m_DistanceToObject = origData.distanceToDisable;
-                            db.m_UpdateRate = origData.updateRate;
-                            db.m_DistantDisable = origData.distantDisable;
-                        });
+                            origList.DoIf((x) => ReferenceEquals(x, db), (origData) =>
+                            {
+                                db.m_Colliders.Clear();
+                                origData.colliders.ForEach((dbc) => db.m_Colliders.Add(dbc));
+                                db.m_DistanceToObject = origData.distanceToDisable;
+                                db.m_UpdateRate = origData.updateRate;
+                                db.m_DistantDisable = origData.distantDisable;
+                            });
+                        }
+                        catch (Exception e)
+                        {
+                            MelonModLogger.Log(ConsoleColor.Red, e.ToString());
+                        }
                     }
                     else
                     {
