@@ -239,14 +239,13 @@ namespace DBMod
             }
             finally
             {
-                MelonModLogger.Log(ConsoleColor.Green, $"NDBMod is {((enabled == true) ? "enabled" : "disabled")}");
-
                 if (onPlayerLeftDelegate == null || onAvatarInstantiatedDelegate == null || onJoinedRoom == null)
                 {
                     this.enabled = false;
                     MelonModLogger.Log(ConsoleColor.Red, "Multiplayer Dynamic Bones mod suffered a critical error! Mod version may be obsolete.");
                 }
             }
+            MelonModLogger.Log(ConsoleColor.Green, $"NDBMod is {((enabled == true) ? "enabled" : "disabled")}");
         }
 
         private unsafe void AddUI()
