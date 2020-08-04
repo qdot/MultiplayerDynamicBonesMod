@@ -23,8 +23,8 @@ namespace DBMod
 {
     internal class NDB : MelonMod
     {
-        public const int VERSION = 25;
-        public const string VERSION_STR = " release build 25";
+        public const int VERSION = 26;
+        public const string VERSION_STR = " pre-release build 26";
 
         private static class NDBConfig
         {
@@ -208,7 +208,7 @@ namespace DBMod
                 return;
             }
 
-            if (MessageBox(IntPtr.Zero, "There is an update avaiable for Multiplayer Dynamic Bones. Not updating could result in the mod not working or the gamje crashing. Do you want to launch the internet browser?", "Multiplayer Dynamic Bones mod", 0x04 | 0x40 | 0x1000) == 6)
+            if (MessageBox(IntPtr.Zero, "There is an update avaiable for Multiplayer Dynamic Bones. Not updating could result in the mod not working or the game crashing. Do you want to launch the internet browser?", "Multiplayer Dynamic Bones mod", 0x04 | 0x40 | 0x1000) == 6)
             {
                 Process.Start(url);
                 MessageBox(IntPtr.Zero, "Please replace the file and restart VRChat for the update to apply", "Multiplayer Dynamic Bones mod", 0x40 | 0x1000);
