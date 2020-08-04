@@ -10,6 +10,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using UnhollowerBaseLib;
+using UnhollowerRuntimeLib.XrefScans;
 using UnityEngine;
 using UnityEngine.UI;
 using VRC;
@@ -70,6 +72,8 @@ namespace DBMod
 
         private float nextUpdateVisibility = 0;
         private const float visiblityUpdateRate = 1f;
+
+        private (MethodBase, MethodBase) reloadDynamicBoneParamInternalFuncs;
 
         private static AvatarInstantiatedDelegate onAvatarInstantiatedDelegate;
         private static PlayerLeftDelegate onPlayerLeftDelegate;
@@ -148,7 +152,7 @@ namespace DBMod
             RegisterModPrefs();
 
             OnModSettingsApplied();
-            
+
             if (NDBConfig.updateMode == 2)
             {
                 new Thread(new ThreadStart(CheckForUpdates)).Start();
@@ -172,12 +176,24 @@ namespace DBMod
             AddUI();
 
             HookCallbackFunctions();
+
+            //to forcefully disable the limit
             PlayerPrefs.SetInt("VRC_LIMIT_DYNAMIC_BONE_USAGE", 0);
+
+            XrefScanMethodDb.RegisterType<DynamicBone>();
+            MethodBase[] methods = XrefScanner.XrefScan(typeof(DynamicBone).GetMethod("OnValidate"))
+                .Where(r => r.Type == XrefType.Method)
+                .Select(xref => xref.TryResolve())
+                .Where(m => m != null)
+                .OrderBy(m => m.GetMethodBody().GetILAsByteArray().Length).ToArray();
+            reloadDynamicBoneParamInternalFuncs = (methods[0], methods[1]);
+
             if (!NDBConfig.hasShownCompatibilityIssueMessage && MelonLoader.Main.Mods.Any(m => m.InfoAttribute.Name.ToLowerInvariant().Contains("emmvrc")))
             {
                 MessageBox(IntPtr.Zero, "Looks like you are using the 'emmVRC' mod. Please disable all emmVRC dynamic bones functionality in emmVRC settings to avoid compatibility issues with Multiplayer Dynamic Bones.", "Multiplayer Dynamic Bones mod", 0x40 | 0x1000 | 0x010000);
                 ModPrefs.SetBool("NDB", "HasShownCompatibilityIssueMessage", true);
             }
+        }
 
         private void CheckForUpdates()
         {
@@ -197,7 +213,7 @@ namespace DBMod
                 Process.Start(url);
                 MessageBox(IntPtr.Zero, "Please replace the file and restart VRChat for the update to apply", "Multiplayer Dynamic Bones mod", 0x40 | 0x1000);
             }
-            
+
         }
 
         private static unsafe void RegisterModPrefs()
@@ -658,6 +674,104 @@ namespace DBMod
                 }
             }
 
+            if (Input.GetKeyDown(KeyCode.F5))
+            {
+                ToggleDynamicBoneEditorGUI();
+            }
+
+        }
+
+        private Rect guiRect;
+        private bool showEditorGUI = false;
+
+        private void ToggleDynamicBoneEditorGUI()
+        {
+            showEditorGUI = !showEditorGUI;
+        }
+
+        public override void OnGUI()
+        {
+            if (showEditorGUI) guiRect = GUILayout.Window(0, new Rect(5, 5, 80, 80), (GUI.WindowFunction)DrawWindowContents, "Dynamic Bones Editor Interface", new Il2CppReferenceArray<GUILayoutOption>(0));
+            GUI.FocusWindow(0);
+        }
+
+        private Vector2 scrollPosition;
+        private void DrawWindowContents(int id)
+        {
+            try
+            {
+                //MelonModLogger.Log(ConsoleColor.DarkBlue, "Started drawing editor UI");
+                GUILayout.Label($"Avatar: {localPlayer.GetComponentInChildren<VRCPlayer>()?.prop_VRCAvatarManager_0?.prop_ApiAvatar_0?.name ?? ("error fetching avatar name")}", new GUIStyle() { fontSize = 18 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                scrollPosition = GUILayout.BeginScrollView(scrollPosition, new GUILayoutOption[] { GUILayout.Width(400), GUILayout.Height(600) });
+                foreach (DynamicBone db in localPlayer.GetComponentsInChildren<DynamicBone>(true))
+                {
+                    //MelonModLogger.Log(ConsoleColor.DarkBlue, $"Started drawing bone {db.m_Root.name}");
+                    GUILayout.Label(db.m_Root.name, new GUIStyle() { fontSize = 18 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    GUILayout.Label("Update rate", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    db.m_UpdateRate = (int)GUILayout.HorizontalSlider(db.m_UpdateRate, 1f, 60f, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    //if (int.TryParse(GUILayout.TextField(((int)db.m_UpdateRate).ToString(), new GUIStyle() { margin = new RectOffset(10, 0, 0, 0) }, new Il2CppReferenceArray<GUILayoutOption>(0)), out int updateRatevalue))
+                    //{
+                    //    db.m_UpdateRate = updateRatevalue;
+                    //}
+
+                    GUILayout.Label("Damping", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    db.m_Damping = GUILayout.HorizontalSlider(db.m_Damping, 0f, 1f, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    GUILayout.Label("Elasticity", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    db.m_Elasticity = GUILayout.HorizontalSlider(db.m_Elasticity, 0f, 1f, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    GUILayout.Label("Stiffness", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    db.m_Stiffness = GUILayout.HorizontalSlider(db.m_Stiffness, 0f, 1f, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    GUILayout.Label("Inert", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    db.m_Inert = GUILayout.HorizontalSlider(db.m_Inert, 0f, 1f, new Il2CppReferenceArray<GUILayoutOption>(0));
+
+                    GUILayout.Label("Radius", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    if (float.TryParse(GUILayout.TextField((db.m_Radius).ToString(), new Il2CppReferenceArray<GUILayoutOption>(0)), out float radiusValue))
+                    {
+                        db.m_Radius = radiusValue;
+                    }
+
+                    GUILayout.Label("End length", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    if (float.TryParse(GUILayout.TextField((db.m_EndLength).ToString(), new Il2CppReferenceArray<GUILayoutOption>(0)), out float endLengthValue))
+                    {
+                        db.m_Radius = endLengthValue;
+                    }
+                    GUILayout.Label("End offset", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    GUILayout.Label("X", new GUIStyle() { fontSize = 14 }, Array.Empty<GUILayoutOption>());
+                    //if (float.TryParse(GUILayout.TextField((db.m_EndOffset.x).ToString(), new GUIStyle() { margin = new RectOffset((int)GUILayoutUtility.GetLastRect().xMax, 0, 0, 0) }, new Il2CppReferenceArray<GUILayoutOption>(0)), out float xvalue))
+                    if (float.TryParse(GUILayout.TextField((db.m_EndOffset.x).ToString(), new Il2CppReferenceArray<GUILayoutOption>(0)), out float xvalue))
+                    {
+                        db.m_EndOffset.Set(xvalue, db.m_EndOffset.y, db.m_EndOffset.z);
+                    }
+                    GUILayout.Label("Y", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    if (float.TryParse(GUILayout.TextField((db.m_EndOffset.y).ToString(), new Il2CppReferenceArray<GUILayoutOption>(0)), out float yvalue))
+                    {
+                        db.m_EndOffset.Set(db.m_EndOffset.x, yvalue, db.m_EndOffset.z);
+                    }
+                    GUILayout.Label("Z", new GUIStyle() { fontSize = 14 }, new Il2CppReferenceArray<GUILayoutOption>(0));
+                    if (float.TryParse(GUILayout.TextField((db.m_EndOffset.z).ToString(), new Il2CppReferenceArray<GUILayoutOption>(0)), out float zvalue))
+                    {
+                        db.m_EndOffset.Set(db.m_EndOffset.x, db.m_EndOffset.y, zvalue);
+                    }
+                }
+
+                GUILayout.EndScrollView();
+                if (GUI.changed)
+                {
+                    foreach (DynamicBone db in localPlayer.GetComponentsInChildren<DynamicBone>(true))
+                    {
+                        db.m_Radius = Mathf.Max(db.m_Radius, 0f);
+                        reloadDynamicBoneParamInternalFuncs.Item1.Invoke(db, null);
+                        reloadDynamicBoneParamInternalFuncs.Item2.Invoke(db, null);
+                        MelonModLogger.Log(ConsoleColor.DarkGreen, $"Updated setting for bone {db.m_Root.name}");
+                    }
+                }
+
+
+                //MelonModLogger.Log(ConsoleColor.DarkBlue, "Finished drawing editor UI");
+            }
+            catch (Exception ex)
+            {
+                MelonModLogger.LogError(ex.ToString());
+            }
         }
 
         private void EnableIfVisible()
