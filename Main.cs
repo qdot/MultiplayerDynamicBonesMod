@@ -406,7 +406,8 @@ namespace DBMod
                 RemoveDynamicBonesFromVisibilityList(key);
                 MelonModLogger.Log(ConsoleColor.Blue, $"User {key} swapped avatar, system updated");
             }
-            if (enabled) AddBonesOfGameObjectToAllPlayers(newValue);
+            if (enabled) AddCollidersToAllPlayers(newValue);
+            //if (enabled) AddBonesOfGameObjectToAllPlayers(newValue);
             if (newValue.Item1 != localPlayer) AddDynamicBonesToVisibilityList(key, newValue.Item3, newValue.Item1.GetComponentInChildren<SkinnedMeshRenderer>());
         }
 
@@ -446,31 +447,81 @@ namespace DBMod
         {
             foreach (System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> player in avatarsInScene.Values)
             {
-                AddBonesOfGameObjectToAllPlayers(player);
+                AddCollidersToAllPlayers(player);
+                //AddBonesOfGameObjectToAllPlayers(player);
             }
+        }
+
+        private void AddCollidersToAllPlayers(System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> player)
+        {
+            foreach (var collider in player.Item3)
+            {
+                ApplyBoneSettings(collider);
+            }
+
+            if (NDBConfig.onlyOptimize) return;
+
+            if ((NDBConfig.disallowDesktoppers && !player.Item2) || (NDBConfig.onlyForMeAndFriends && !player.Item5 && player.Item1 != localPlayer) || (NDBConfig.onlyForMyBones && player.Item1 != localPlayer)) return;
+            foreach (var otherPlayerInfo in avatarsInScene.Values)
+            {
+                try
+                {
+                    if ((otherPlayerInfo.Item1 == player.Item1) || (NDBConfig.disallowDesktoppers && !player.Item2 && player.Item1 != localPlayer) || (NDBConfig.onlyForMeAndFriends && !player.Item5 && player.Item1 != localPlayer)) continue;
+                    foreach (var otherPlayerDynamicBone in otherPlayerInfo.Item3)
+                    {
+                        foreach (var collider in player.Item4)
+                        {
+                            if (NDBConfig.onlyHandColliders && otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && collider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.LeftHand)) || collider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.RightHand))) continue;
+                            try
+                            {
+                                AddColliderToBone(otherPlayerDynamicBone, collider);
+                            }
+                            catch (Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); }
+                        }
+                    }
+                }
+                catch { };
+            }
+
+            foreach (var otherPlayerInfo in avatarsInScene.Values)
+            {
+                try
+                {
+                    if ((otherPlayerInfo.Item1 == player.Item1) || (NDBConfig.disallowDesktoppers && !player.Item2 && player.Item1 != localPlayer) || (NDBConfig.onlyForMeAndFriends && !player.Item5 && player.Item1 != localPlayer)) continue;
+                    foreach (var otherCollider in otherPlayerInfo.Item4)
+                    {
+                        if (NDBConfig.onlyHandColliders && otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && otherCollider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.LeftHand)) || otherCollider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.RightHand))) continue;
+                        foreach (var dynamicBone in player.Item3)
+                        {
+                            AddColliderToBone(dynamicBone, otherCollider);
+                        }
+                    }
+                }
+                catch { };
+            }
+
         }
 
         private void AddBonesOfGameObjectToAllPlayers(System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> player)
         {
-            if (player.Item1 != localPlayer)
+            if (player.Item1 == localPlayer) return;
+            if (NDBConfig.onlyForMeAndFriends)
             {
-                if (NDBConfig.onlyForMeAndFriends)
+                if (!player.Item5)
                 {
-                    if (!player.Item5)
-                    {
-                        MelonModLogger.Log(ConsoleColor.DarkYellow, $"Not adding bones of player {avatarsInScene.First((x) => x.Value.Item1 == player.Item1).Key} because settings only allow friends");
-                        return;
-                    }
-                }
-                if (NDBConfig.disallowDesktoppers)
-                {
-                    if (!player.Item2)
-                    {
-                        MelonModLogger.Log(ConsoleColor.DarkYellow, $"Not adding bones of player {avatarsInScene.First((x) => x.Value.Item1 == player.Item1).Key} because settings disallow desktopper");
-                        return;
-                    }
+                    MelonModLogger.Log(ConsoleColor.DarkYellow, $"Not adding bones of player {avatarsInScene.First((x) => x.Value.Item1 == player.Item1).Key} because settings only allow friends");
+                    return;
                 }
             }
+            if (NDBConfig.disallowDesktoppers)
+            {
+                if (!player.Item2)
+                {
+                    MelonModLogger.Log(ConsoleColor.DarkYellow, $"Not adding bones of player {avatarsInScene.First((x) => x.Value.Item1 == player.Item1).Key} because settings disallow desktopper");
+                    return;
+                }
+            }
+
 
             foreach (DynamicBone db in player.Item3)
             {
@@ -511,10 +562,13 @@ namespace DBMod
 
         private void AddColliderToDynamicBone(DynamicBone bone, DynamicBoneCollider dbc)
         {
+            if (bone == null || dbc == null) return;
 #if DEBUG
             MelonModLogger.Log(ConsoleColor.Cyan, $"Adding {bone.m_Root.name} to {dbc.gameObject.name}");
 #endif
+            //MelonModLogger.Log(ConsoleColor.Cyan, $"Adding {dbc.gameObject.name} to {bone.m_Root.name}");
             if (!bone.m_Colliders.Contains(dbc)) bone.m_Colliders.Add(dbc);
+
         }
 
         private void AddColliderToBone(DynamicBone bone, DynamicBoneCollider collider)
@@ -556,21 +610,38 @@ namespace DBMod
             if (Input.GetKeyDown(KeyCode.F8))
             {
                 MelonModLogger.Log(ConsoleColor.DarkMagenta, "My bones have the following colliders attached:");
-                avatarsInScene.Values.First((tup) => tup.Item1 == localPlayer).Item3.DoIf((bone) => bone != null, (bone) =>
+                localPlayer.GetComponentsInChildren<DynamicBone>().Do((bone) =>
                 {
-                    bone.m_Colliders.ToArray().Do((dbc) =>
+                    MelonModLogger.Log(ConsoleColor.DarkMagenta, $"Bone {bone.m_Root.name} has {bone.m_Colliders.Count} colliders attached");
+                    bone.m_Colliders._items.Do((dbc) =>
                     {
                         try
                         {
                             MelonModLogger.Log(ConsoleColor.DarkMagenta, $"Bone {bone?.m_Root.name ?? "null"} has {dbc?.gameObject.name ?? "null"}");
                         }
-                        catch (System.Exception ex) { };
+                        catch (System.Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); };
                     });
                 });
 
                 MelonModLogger.Log(ConsoleColor.DarkMagenta, $"There are {avatarsInScene.Values.Aggregate(0, (acc, tup) => acc += tup.Item3.Length)} Dynamic Bones in scene");
                 MelonModLogger.Log(ConsoleColor.DarkMagenta, $"There are {avatarsInScene.Values.Aggregate(0, (acc, tup) => acc += tup.Item4.Length)} Dynamic Bones Colliders in scene");
+            }
 
+            if (Input.GetKeyDown(KeyCode.F9))
+            {
+                MelonModLogger.Log(ConsoleColor.DarkMagenta, "Another player bones have the following colliders attached:");
+                avatarsInScene.First(i => i.Value.Item1 != localPlayer).Value.Item1.GetComponentsInChildren<DynamicBone>().Do((bone) =>
+                {
+                    MelonModLogger.Log(ConsoleColor.DarkMagenta, $"Bone {bone.m_Root.name} has {bone.m_Colliders.Count} colliders attached");
+                    bone.m_Colliders._items.Do((dbc) =>
+                    {
+                        try
+                        {
+                            MelonModLogger.Log(ConsoleColor.DarkMagenta, $"Bone {bone?.m_Root.name ?? "null"} has {dbc?.gameObject.name ?? "null"}");
+                        }
+                        catch (System.Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); };
+                    });
+                });
             }
 
             if (Input.GetKeyDown(KeyCode.F1))
@@ -599,7 +670,9 @@ namespace DBMod
                     bool visible = go.Item1.isVisible;
                     foreach (DynamicBone db in go.Item2)
                     {
-                        //if (db.enabled != visible) MelonModLogger.Log(ConsoleColor.DarkBlue, $"{db.gameObject.name} is now {((visible) ? "enabled" : "disabled")}");
+#if DEBUG
+                        if (db.enabled != visible) MelonModLogger.Log(ConsoleColor.DarkBlue, $"{db.gameObject.name} is now {((visible) ? "enabled" : "disabled")}");
+#endif
                         db.enabled = visible;
                     }
                 }
@@ -611,11 +684,15 @@ namespace DBMod
         {
             enabled = !enabled;
             MelonModLogger.Log(ConsoleColor.Green, $"NDBMod is now {((enabled == true) ? "enabled" : "disabled")}");
-            if (!enabled)
+            try
             {
-                RestoreOriginalColliderList();
+                if (!enabled)
+                {
+                    RestoreOriginalColliderList();
+                }
+                else AddAllCollidersToAllPlayers();
             }
-            else AddAllCollidersToAllPlayers();
+            catch (Exception ex) { MelonModLogger.Log(ConsoleColor.Red, ex.ToString()); }
 
             try
             {
