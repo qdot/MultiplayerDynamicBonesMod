@@ -44,6 +44,7 @@ namespace DBMod
             public static bool keybindsEnabled;
             public static bool onlyOptimize;
             public static int updateMode;
+            public static bool hasShownCompatibilityIssueMessage;
         }
 
 
@@ -172,7 +173,11 @@ namespace DBMod
 
             HookCallbackFunctions();
             PlayerPrefs.SetInt("VRC_LIMIT_DYNAMIC_BONE_USAGE", 0);
-        }
+            if (!NDBConfig.hasShownCompatibilityIssueMessage && MelonLoader.Main.Mods.Any(m => m.InfoAttribute.Name.ToLowerInvariant().Contains("emmvrc")))
+            {
+                MessageBox(IntPtr.Zero, "Looks like you are using the 'emmVRC' mod. Please disable all emmVRC dynamic bones functionality in emmVRC settings to avoid compatibility issues with Multiplayer Dynamic Bones.", "Multiplayer Dynamic Bones mod", 0x40 | 0x1000 | 0x010000);
+                ModPrefs.SetBool("NDB", "HasShownCompatibilityIssueMessage", true);
+            }
 
         private void CheckForUpdates()
         {
@@ -216,6 +221,7 @@ namespace DBMod
             ModPrefs.RegisterPrefBool("NDB", "KeybindsEnabled", true, "Enable keyboard actuation(F1, F4 and F8)");
             ModPrefs.RegisterPrefBool("NDB", "OptimizeOnly", false, "Just optimize the dynamic bones of the scene, don't enable interaction");
             ModPrefs.RegisterPrefInt("NDB", "UpdateMode", 0, "A value of 2 will notify the user when a new version of the mod is avaiable, while 1 will not.");
+            ModPrefs.RegisterPrefBool("NDB", "HasShownCompatibilityIssueMessage", false, null, true);
         }
 
         private unsafe void HookCallbackFunctions()
@@ -286,6 +292,7 @@ namespace DBMod
             NDBConfig.keybindsEnabled = ModPrefs.GetBool("NDB", "KeybindsEnabled");
             NDBConfig.onlyOptimize = ModPrefs.GetBool("NDB", "OptimizeOnly");
             NDBConfig.updateMode = ModPrefs.GetInt("NDB", "UpdateMode");
+            NDBConfig.hasShownCompatibilityIssueMessage = ModPrefs.GetBool("NDB", "HasShownCompatibilityIssueMessage");
 
         }
 
