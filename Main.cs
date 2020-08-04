@@ -171,6 +171,7 @@ namespace DBMod
             AddUI();
 
             HookCallbackFunctions();
+            PlayerPrefs.SetInt("VRC_LIMIT_DYNAMIC_BONE_USAGE", 0);
         }
 
         private void CheckForUpdates()
