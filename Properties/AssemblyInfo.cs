@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Resources;
 using MelonLoader;
@@ -33,5 +33,5 @@ using MelonLoader;
 // utilizando el carácter "*", como se muestra a continuación:
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: NeutralResourcesLanguage("en")]
-[assembly: MelonModInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", DBMod.NDB.VERSION_STR, "DltDat/charlesdeep", "https://github.com/charlesdeepk/MultiplayerDynamicBonesMod/releases/")]
-[assembly: MelonModGame("VRChat", "VRChat")]
+[assembly: MelonInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", DBMod.NDB.VERSION_STR, "DltDat/charlesdeep", "https://github.com/charlesdeepk/MultiplayerDynamicBonesMod/releases/")]
+[assembly: MelonGame("VRChat", "VRChat")]
