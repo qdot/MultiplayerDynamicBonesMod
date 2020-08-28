@@ -723,7 +723,7 @@ namespace DBMod
 
             if (Input.GetKeyDown(KeyCode.F5))
             {
-                ToggleDynamicBoneEditorGUI();
+                if (NDBConfig.enableEditor) ToggleDynamicBoneEditorGUI();
             }
 
         }
