@@ -29,8 +29,8 @@ namespace DBMod
 {
     internal class NDB : MelonMod
     {
-        public const int VERSION = 29;
-        public const string VERSION_STR = " pre-release build 29";
+        public const int VERSION = 31;
+        public const string VERSION_STR = " release build 31";
 
         private static class NDBConfig
         {
@@ -210,8 +210,6 @@ namespace DBMod
             //to forcefully disable the limit
             PlayerPrefs.SetInt("VRC_LIMIT_DYNAMIC_BONE_USAGE", 0);
 
-
-            XrefScanMethodDb.RegisterType<DynamicBone>();
             MethodBase[] methods = XrefScanner.XrefScan(typeof(DynamicBone).GetMethod("OnValidate"))
                 .Where(r => r.Type == XrefType.Method)
                 .Select(xref => xref.TryResolve())
@@ -271,7 +269,7 @@ namespace DBMod
             MelonPrefs.RegisterBool("NDB", "HasShownCompatibilityIssueMessage", false, null, true);
             MelonPrefs.RegisterString("NDB", "AvatarsToWhichNotApply", "", null, true);
             MelonPrefs.RegisterBool("NDB", "EnableEditor", false);
-            MelonPrefs.RegisterBool("NDB", "OnlyDynamicBonesOnBreasts", false);
+            MelonPrefs.RegisterBool("NDB", "OnlyDynamicBonesOnBreasts", false, "Only the breast bones will be made multiplayer");
         }
 
         private unsafe void HookCallbackFunctions()
@@ -530,13 +528,14 @@ namespace DBMod
                     if ((otherPlayerInfo.Item1 == player.Item1) || (NDBConfig.disallowDesktoppers && !player.Item2 && player.Item1 != localPlayer) || (NDBConfig.onlyForMeAndFriends && !player.Item5 && player.Item1 != localPlayer)) continue;
                     foreach (DynamicBone otherPlayerDynamicBone in otherPlayerInfo.Item3)
                     {
-                        if (!(NDBConfig.breastsOnly && otherPlayerDynamicBone.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && (otherPlayerDynamicBone.transform.IsChildOf(otherPlayerDynamicBone.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.Chest))))) continue;
+                        if (NDBConfig.breastsOnly && (otherPlayerDynamicBone.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && (!otherPlayerDynamicBone.transform.IsChildOf(otherPlayerDynamicBone.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.Chest))))) continue;
                         foreach (DynamicBoneCollider collider in player.Item4)
                         {
-                            if (NDBConfig.onlyHandColliders && otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && collider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.LeftHand)) || collider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.RightHand))) continue;
+                            if (NDBConfig.onlyHandColliders && otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && (collider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.LeftHand)) || collider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.RightHand)))) continue;
                             try
                             {
                                 AddColliderToBone(otherPlayerDynamicBone, collider);
+
                             }
                             catch (Exception ex) { MelonLogger.Log(ConsoleColor.Red, ex.ToString()); }
                         }
@@ -555,7 +554,7 @@ namespace DBMod
                         if (NDBConfig.onlyHandColliders && otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && (otherCollider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.LeftHand)) || otherCollider.transform.IsChildOf(otherPlayerInfo.Item1.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.RightHand)))) continue;
                         foreach (DynamicBone dynamicBone in player.Item3)
                         {
-                            if (!(NDBConfig.breastsOnly && dynamicBone.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && dynamicBone.transform.IsChildOf(dynamicBone.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.Chest)))) continue;
+                            if (NDBConfig.breastsOnly && (dynamicBone.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.isHuman && (!dynamicBone.transform.IsChildOf(dynamicBone.transform.root.GetComponentInChildren<VRCPlayer>().field_Internal_Animator_0.GetBoneTransform(HumanBodyBones.Chest))))) continue;
                             AddColliderToBone(dynamicBone, otherCollider);
                         }
                     }
