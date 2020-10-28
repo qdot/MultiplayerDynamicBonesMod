@@ -29,8 +29,8 @@ namespace DBMod
 {
     internal class NDB : MelonMod
     {
-        public const int VERSION = 31;
-        public const string VERSION_STR = " release build 31";
+        public const int VERSION = 32;
+        public const string VERSION_STR = " release build 32";
 
         private static class NDBConfig
         {
@@ -413,7 +413,7 @@ namespace DBMod
                         _Instance.localPlayer = avatar;
                         try
                         {
-                            _Instance.localPlayerDBbyRootName = avatar.GetComponentsInChildren<DynamicBone>().ToDictionary((b) => b.m_Root.name);
+                            _Instance.localPlayerDBbyRootName = avatar.GetComponentsInChildren<DynamicBone>().ToDictionary((b) => b.GetInstanceID().ToString());
                         }
                         catch (Exception ex) { MelonLogger.LogError(ex.ToString()); }
                     }
