@@ -730,9 +730,136 @@ namespace DBMod
         private Rect guiRect;
         private bool showEditorGUI = false;
 
+        private Process editorProccess;
+        private string editorPath;
+        private IPCHandler ipcHandler;
         private void ToggleDynamicBoneEditorGUI()
         {
             showEditorGUI = !showEditorGUI;
+            new Thread(new ThreadStart(ConnectToExternalInterface));
+            //if (editorProccess != null && !editorProccess.HasExited)
+            //{
+            //    editorProccess.CloseMainWindow();
+            //    editorProccess = null;
+            //}
+            //else
+            //{
+            //    if (editorPath == null)
+            //    {
+            //        if (!File.Exists(editorPath))
+            //        {
+            //            editorPath = Path.Combine(Assembly.Location, "ExternalDynamicBoneEditor.exe");
+            //            //using (ResourceReader resourceReader = new ResourceReader(Assembly.GetManifestResourceStream(Assembly.GetManifestResourceNames()[0])))
+            //            //{
+            //            //    editorPath = Path.Combine(Assembly.Location, "ExternalDynamicBoneEditor.exe");
+            //            //    resourceReader.GetResourceData("ExternalDynamicBoneEditor", out string _, out byte[] bytecode);
+            //            //    File.WriteAllBytes(editorPath, bytecode);
+            //            //}
+            //        }
+            //    }
+            //    editorProccess = Process.Start(editorPath);
+            //    new Thread(new ParameterizedThreadStart(ConnectToExternalInterface)).Start(new Tuple<string, DynamicBone[]>(localPlayer.transform.root.GetComponentInChildren<VRCPlayer>().prop_ApiAvatar_0.name.Take(127).Aggregate("", (acc, c) => acc += c), (DynamicBone[])localPlayer.GetComponentsInChildren<DynamicBone>()));
+            //}
+        }
+
+        private void ConnectToExternalInterface()
+        {
+            try
+            {
+                AvatarBones avatar = new AvatarBones();
+                avatar.name = localPlayer.transform.root.GetComponentInChildren<VRCPlayer>().prop_ApiAvatar_0.name.Take(127).Aggregate("", (acc, c) => acc += c);
+                MelonLogger.Log(ConsoleColor.Blue, "1");
+                foreach (DynamicBone db in localPlayer.GetComponentsInChildren<DynamicBone>())
+                {
+                    avatar.bones[avatar.boneCount++] = MakeBoneStruct(db);
+                }
+                MelonLogger.Log(ConsoleColor.Blue, "2");
+                ipcHandler = new IPCHandler(new NamedPipeServerStream("vrchatmdb", PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Message));
+                while (!ipcHandler.IsConnected) Thread.Sleep(100);
+                HandleIPCMessages(localPlayer.GetComponentsInChildren<DynamicBone>());
+            }
+            catch (Exception e) { MelonLogger.Log(e.ToString()); }
+        }
+
+        private void HandleIPCMessages(DynamicBone[] dynamicBones)
+        {
+            Message kind = ipcHandler.Receive(out byte[] msg);
+            using (MemoryStream ms = new MemoryStream(msg))
+            {
+                using (BinaryReader br = new BinaryReader(ms))
+                {
+                    switch (kind)
+                    {
+                        case Message.SetBoneDamping:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_Damping = br.ReadSingle();
+                                break;
+                            }
+                        case Message.SetBoneElasticity:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_Elasticity = br.ReadSingle();
+                                break;
+                            }
+                        case Message.SetBoneStiffness:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_Stiffness = br.ReadSingle();
+                                break;
+                            }
+                        case Message.SetBoneInert:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_Inert = br.ReadSingle();
+                                break;
+                            }
+                        case Message.SetBoneRadius:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_Radius = br.ReadSingle();
+                                break;
+                            }
+                        case Message.SetBoneEndLength:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_EndLength = br.ReadSingle();
+                                break;
+                            }
+                        case Message.SetBoneEndOffset:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_EndOffset = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+                                break;
+                            }
+                        case Message.SetBoneGravity:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_Gravity = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+                                break;
+                            }
+                        case Message.SetBoneForce:
+                            {
+                                GetDynamicBoneByName(dynamicBones, br.ReadString()).m_Force = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+                                break;
+                            }
+                    }
+                }
+            }
+
+        }
+
+        private DynamicBone GetDynamicBoneByName(DynamicBone[] bones, string name)
+        {
+            return bones.Single(b => b.m_Root.name == name);
+        }
+
+        private SerializedBoneData MakeBoneStruct(DynamicBone db)
+        {
+            SerializedBoneData serializedBoneData = new SerializedBoneData();
+            serializedBoneData.name = db.m_Root?.name ?? "undefined";
+            serializedBoneData.damping = db.m_Damping;
+            serializedBoneData.elasticity = db.m_Elasticity;
+            serializedBoneData.stiffness = db.m_Stiffness;
+            serializedBoneData.inert = db.m_Inert;
+            serializedBoneData.radius = db.m_Radius;
+            serializedBoneData.endLength = db.m_EndLength;
+            serializedBoneData.endOffset = new float3(db.m_EndOffset.x, db.m_EndOffset.y, db.m_EndOffset.z);
+            serializedBoneData.gravity = new float3(db.m_Gravity.x, db.m_Gravity.y, db.m_Gravity.z);
+            serializedBoneData.force = new float3(db.m_Force.x, db.m_Force.y, db.m_Force.z);
+            return serializedBoneData;
         }
 
         public override void OnGUI()
