@@ -16,3 +16,4 @@ Once the mod has ben run at least once, it creates a settings file in the vrchat
 Credits:
 - knah for helping me to fix function hooking
 - huntereb to show me how to use vrchat's button system
+- Dervali-git for providing a fix for vrchat build 1026
