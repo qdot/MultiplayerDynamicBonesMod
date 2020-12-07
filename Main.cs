@@ -351,32 +351,43 @@ namespace DBMod
 
         private static void OnJoinedRoom(IntPtr @this)
         {
-            _Instance.originalSettings = new Dictionary<string, List<OriginalBoneInformation>>();
-            _Instance.avatarsInScene = new Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>>();
-            _Instance.avatarRenderers = new Dictionary<string, System.Tuple<Renderer, DynamicBone[]>>();
-            _Instance.localPlayer = null;
+            try
+            {
+                _Instance.originalSettings = new Dictionary<string, List<OriginalBoneInformation>>();
+                _Instance.avatarsInScene = new Dictionary<string, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>>();
+                _Instance.avatarRenderers = new Dictionary<string, System.Tuple<Renderer, DynamicBone[]>>();
+                _Instance.localPlayer = null;
 
-            onJoinedRoom(@this);
-            MelonLogger.Log(ConsoleColor.Blue, "New scene loaded; reset");
+                onJoinedRoom(@this);
+                Console.WriteLine("ONJOINEDROOM PAST-CALLBACK");
+                MelonLogger.Log(ConsoleColor.Blue, "New scene loaded; reset");
+                Console.WriteLine("ONJOINEDROOM SUCCESS");
+            }
+            catch(Exception e)
+            {
+                MelonLogger.LogError(e.ToString());
+            }
         }
 
         private static void OnPlayerLeft(IntPtr @this, IntPtr playerPtr)
         {
             Player player = new Player(playerPtr);
 
-            if (!_Instance.avatarsInScene.ContainsKey(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0) && !_Instance.originalSettings.ContainsKey(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0))
+            if (!_Instance.avatarsInScene.ContainsKey(player.field_Internal_VRCPlayer_0.nameplate.field_Private_String_0) && !_Instance.originalSettings.ContainsKey(player.field_Internal_VRCPlayer_0.nameplate.field_Private_String_0))
             {
                 onPlayerLeftDelegate(@this, playerPtr);
+                //Console.WriteLine("ONPLAYERLEFT PAST-CALLBACK");
                 return;
 
             }
 
-            _Instance.RemoveBonesOfGameObjectInAllPlayers(_Instance.avatarsInScene[player.field_Internal_VRCPlayer_0.namePlate.prop_String_0].Item4);
-            _Instance.DeleteOriginalColliders(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0);
-            _Instance.RemovePlayerFromDict(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0);
-            _Instance.RemoveDynamicBonesFromVisibilityList(player.field_Internal_VRCPlayer_0.namePlate.prop_String_0);
-            MelonLogger.Log(ConsoleColor.Blue, $"Player {player.field_Internal_VRCPlayer_0.namePlate.prop_String_0} left the room so all his dynamic bones info was deleted");
+            _Instance.RemoveBonesOfGameObjectInAllPlayers(_Instance.avatarsInScene[player.field_Internal_VRCPlayer_0.nameplate.field_Private_String_0].Item4);
+            _Instance.DeleteOriginalColliders(player.field_Internal_VRCPlayer_0.nameplate.field_Private_String_0);
+            _Instance.RemovePlayerFromDict(player.field_Internal_VRCPlayer_0.nameplate.field_Private_String_0);
+            _Instance.RemoveDynamicBonesFromVisibilityList(player.field_Internal_VRCPlayer_0.nameplate.field_Private_String_0);
+            MelonLogger.Log(ConsoleColor.Blue, $"Player {player.field_Internal_VRCPlayer_0.nameplate.field_Private_String_0} left the room so all his dynamic bones info was deleted");
             onPlayerLeftDelegate(@this, playerPtr);
+            //Console.WriteLine("ONPLAYERLEFT SUCCESS");
         }
 
         private static void RecursiveHierarchyDump(Transform child, int c)
@@ -397,7 +408,9 @@ namespace DBMod
         //private static bool hasDumpedIt = false;
         private static void OnAvatarInstantiated(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr, bool loaded)
         {
+            //Console.WriteLine("ONAVATARINSTANTIATED START");
             onAvatarInstantiatedDelegate(@this, avatarPtr, avatarDescriptorPtr, loaded);
+            //Console.WriteLine("ONAVATARINSTANTIATED PAST-CALLBACK");
 
             try
             {
@@ -419,7 +432,7 @@ namespace DBMod
                     }
 
                     _Instance.AddOrReplaceWithCleanup(
-                        avatar.transform.root.GetComponentInChildren<VRCPlayer>().namePlate.prop_String_0,
+                        avatar.transform.root.GetComponentInChildren<VRCPlayer>().nameplate.field_Private_String_0,
                         new System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool>(
                             avatar,
                             avatar.transform.root.GetComponentInChildren<VRCPlayer>().prop_VRCPlayerApi_0.IsUserInVR(),
@@ -428,13 +441,15 @@ namespace DBMod
                             APIUser.IsFriendsWith(avatar.transform.root.GetComponentInChildren<Player>().prop_APIUser_0.id)));
 
                     MelonLogger.Log(ConsoleColor.Blue, "New avatar loaded, added to avatar list");
-                    MelonLogger.Log(ConsoleColor.Green, $"Added {avatar.transform.root.GetComponentInChildren<VRCPlayer>().namePlate.prop_String_0}");
+                    MelonLogger.Log(ConsoleColor.Green, $"Added {avatar.transform.root.GetComponentInChildren<VRCPlayer>().nameplate.field_Private_String_0}");
                 }
             }
             catch (System.Exception ex)
             {
                 MelonLogger.LogError("An exception was thrown while working!\n" + ex.ToString());
             }
+
+            //Console.WriteLine("ONAVATARINSTANTIATED SUCCESS");
         }
 
         public void AddOrReplaceWithCleanup(string key, System.Tuple<GameObject, bool, DynamicBone[], DynamicBoneCollider[], bool> newValue)
@@ -449,7 +464,7 @@ namespace DBMod
                 }
             }
 
-            if (!avatarsInScene.ContainsKey(key))
+            if (!avatarsInScene.ContainsKey(key ?? ""))
             {
                 SaveOriginalColliderList(key, newValue.Item3);
                 AddToPlayerDict(key, newValue);
