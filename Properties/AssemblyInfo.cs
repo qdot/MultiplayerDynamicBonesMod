@@ -33,5 +33,5 @@ using MelonLoader;
 // utilizando el carácter "*", como se muestra a continuación:
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: NeutralResourcesLanguage("en")]
-[assembly: MelonInfo(typeof(DBMod.NDB), "MultiplayerDynamicBones", DBMod.NDB.VERSION_STR, "DltDat/charlesdeep", "https://github.com/charlesdeepk/MultiplayerDynamicBonesMod/releases/")]
+[assembly: MelonInfo(typeof(DBMod.NDB), "Multiplayer Dynamic Bones", DBMod.NDB.VERSION_STR, "DltDat/charlesdeep", "https://github.com/charlesdeepk/MultiplayerDynamicBonesMod/releases/")]
 [assembly: MelonGame("VRChat", "VRChat")]

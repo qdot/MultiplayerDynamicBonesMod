@@ -30,7 +30,7 @@ namespace DBMod
     internal class NDB : MelonMod
     {
         public const int VERSION = 34;
-        public const string VERSION_STR = " release build 34";
+        public const string VERSION_STR = "build 34";
 
         private static class NDBConfig
         {
@@ -56,6 +56,9 @@ namespace DBMod
             public static HashSet<string> avatarsToWhichNotApply;
             public static bool enableEditor;
             public static bool breastsOnly;
+            public static bool enableUserPanelButton;
+            public static int userPanelButtonX;
+            public static int userPanelButtonY;
         }
 
 
@@ -141,9 +144,14 @@ namespace DBMod
         {
             if (NDBConfig.enableFallbackModUi) AddButtons();
 
+            if (NDBConfig.enableUserPanelButton) AddSelectiveButton();
+        }
+
+        private static void AddSelectiveButton()
+        {
             GameObject button = UnityEngine.Object.Instantiate(QuickMenu.prop_QuickMenu_0.transform.Find("UserInteractMenu/BlockButton").gameObject);
             button.transform.SetParent(QuickMenu.prop_QuickMenu_0.transform.Find("UserInteractMenu"), false);
-            button.transform.localPosition = new Vector3(button.transform.localPosition.x, button.transform.localPosition.y - 400f, button.transform.localPosition.z);
+            button.transform.localPosition = new Vector3(button.transform.localPosition.x + (400f * NDBConfig.userPanelButtonX), button.transform.localPosition.y + (400f * NDBConfig.userPanelButtonY), button.transform.localPosition.z);
             button.GetComponentInChildren<Button>().onClick = new Button.ButtonClickedEvent();
             button.GetComponentInChildren<Button>().onClick.AddListener(new Action(() =>
             {
@@ -217,11 +225,12 @@ namespace DBMod
                 .OrderBy(m => m.GetMethodBody().GetILAsByteArray().Length).ToArray();
             reloadDynamicBoneParamInternalFuncs = (methods[0], methods[1]);
 
-            if (!NDBConfig.hasShownCompatibilityIssueMessage && MelonHandler.Mods.Any(m => m.Info.Name.ToLowerInvariant().Contains("emmvrc")))
-            {
-                MessageBox(IntPtr.Zero, "Looks like you are using the 'emmVRC' mod. Please disable all emmVRC dynamic bones functionality in emmVRC settings to avoid compatibility issues with Multiplayer Dynamic Bones.", "Multiplayer Dynamic Bones mod", 0x40 | 0x1000 | 0x010000);
-                MelonPrefs.SetBool("NDB", "HasShownCompatibilityIssueMessage", true);
-            }
+            //Obsolete?
+            //if (!NDBConfig.hasShownCompatibilityIssueMessage && MelonHandler.Mods.Any(m => m.Info.Name.ToLowerInvariant().Contains("emmvrc")))
+            //{
+            //    MessageBox(IntPtr.Zero, "Looks like you are using the 'emmVRC' mod. Please disable all emmVRC dynamic bones functionality in emmVRC settings to avoid compatibility issues with Multiplayer Dynamic Bones.", "Multiplayer Dynamic Bones mod", 0x40 | 0x1000 | 0x010000);
+            //    MelonPrefs.SetBool("NDB", "HasShownCompatibilityIssueMessage", true);
+            //}
         }
 
         private void CheckForUpdates()
@@ -270,6 +279,9 @@ namespace DBMod
             MelonPrefs.RegisterString("NDB", "AvatarsToWhichNotApply", "", null, true);
             MelonPrefs.RegisterBool("NDB", "EnableEditor", false);
             MelonPrefs.RegisterBool("NDB", "OnlyDynamicBonesOnBreasts", false, "Only the breast bones will be made multiplayer");
+            MelonPrefs.RegisterBool("NDB", "EnableUserPanelButton", false, "Enable the button that allows per-user dynamic bones enable or disable");
+            MelonPrefs.RegisterInt("NDB", "UserPanelButtonX", 0, "X offset for the user panel button");
+            MelonPrefs.RegisterInt("NDB", "UserPanelButtonY", -1, "Y offset for the user panel button");
         }
 
         private unsafe void HookCallbackFunctions()
@@ -346,7 +358,9 @@ namespace DBMod
             NDBConfig.avatarsToWhichNotApply = new HashSet<string>(MelonPrefs.GetString("NDB", "AvatarsToWhichNotApply").Split(new char[] { ';' }));
             NDBConfig.enableEditor = MelonPrefs.GetBool("NDB", "EnableEditor");
             NDBConfig.breastsOnly = MelonPrefs.GetBool("NDB", "OnlyDynamicBonesOnBreasts");
-
+            NDBConfig.enableUserPanelButton = MelonPrefs.GetBool("NDB", "OnlyDynamicBonesOnBreasts");
+            NDBConfig.userPanelButtonX = MelonPrefs.GetInt("NDB", "UserPanelButtonX");
+            NDBConfig.userPanelButtonY = MelonPrefs.GetInt("NDB", "UserPanelButtonY");
         }
 
         private static void OnJoinedRoom(IntPtr @this)
@@ -372,24 +386,20 @@ namespace DBMod
         private static void OnPlayerLeft(IntPtr @this, IntPtr playerPtr)
         {
             Player player = new Player(playerPtr);
-            MelonLogger.Log(ConsoleColor.Red, 1);
             if (!_Instance.avatarsInScene.ContainsKey(player.field_Internal_VRCPlayer_0.prop_String_0) && !_Instance.originalSettings.ContainsKey(player.field_Internal_VRCPlayer_0.prop_String_0))
             {
-                MelonLogger.Log(ConsoleColor.Red, 4);
 
                 onPlayerLeftDelegate(@this, playerPtr);
                 //Console.WriteLine("ONPLAYERLEFT PAST-CALLBACK");
                 return;
 
             }
-            MelonLogger.Log(ConsoleColor.Red, 2);
 
             _Instance.RemoveBonesOfGameObjectInAllPlayers(_Instance.avatarsInScene[player.field_Internal_VRCPlayer_0.prop_String_0].Item4);
             _Instance.DeleteOriginalColliders(player.field_Internal_VRCPlayer_0.prop_String_0);
             _Instance.RemovePlayerFromDict(player.field_Internal_VRCPlayer_0.prop_String_0);
             _Instance.RemoveDynamicBonesFromVisibilityList(player.field_Internal_VRCPlayer_0.prop_String_0);
             MelonLogger.Log(ConsoleColor.Blue, $"Player {player.field_Internal_VRCPlayer_0.prop_String_0} left the room so all his dynamic bones info was deleted");
-            MelonLogger.Log(ConsoleColor.Red, 3);
             onPlayerLeftDelegate(@this, playerPtr);
             //Console.WriteLine("ONPLAYERLEFT SUCCESS");
         }
