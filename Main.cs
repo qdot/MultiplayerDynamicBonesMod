@@ -1059,7 +1059,7 @@ namespace DBMod
                     {
                         try
                         {
-                            origList.DoIf((x) => ReferenceEquals(x, db), (origData) =>
+                            origList.DoIf((x) => ReferenceEquals(x.referenceToOriginal, db), (origData) =>
                             {
                                 db.m_Colliders.Clear();
                                 origData.colliders.ForEach((dbc) => db.m_Colliders.Add(dbc));
