@@ -29,8 +29,8 @@ namespace DBMod
 {
     internal class NDB : MelonMod
     {
-        public const int VERSION = 34;
-        public const string VERSION_STR = "build 34";
+        public const int VERSION = 35;
+        public const string VERSION_STR = "build 35";
 
         private static class NDBConfig
         {
